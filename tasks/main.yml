@@ -1,0 +1,35 @@
+---
+
+# gather facts
+- name: Get databases
+  uri: url="{{ansible_influx_url}}/query" method=POST body="q=SHOW DATABASES" return_content=yes
+  register: ansible_influx_dbs
+  changed_when: false
+  failed_when: (ansible_influx_dbs.rc is defined and ansible_influx_dbs.rc == 1)
+    or (ansible_influx_dbs.json is defined and ansible_influx_dbs.json.results[0].error is defined)
+
+- name: Set facts
+  set_fact:
+    ifx_dbs: "{{ansible_influx_dbs.json.results[0].series[0]['values']|flatten if ansible_influx_dbs.json.results is defined else default([])}}"
+
+- name: Setup databases
+  include_tasks: influxdb_database.yml database={{db_item}}
+  with_items: "{{ansible_influx_databases|sort}}"
+  loop_control: { loop_var: db_item }
+
+# AFTER setup:
+- name: Show continuous queries
+  uri: url="{{ansible_influx_url}}/query" method=POST body="q=SHOW CONTINUOUS QUERIES" return_content=yes
+  register: ansible_influx_cqs
+  changed_when: false
+  failed_when: (ansible_influx_cqs.rc is defined and ansible_influx_cqs.rc == 1)
+    or (ansible_influx_cqs.json is defined and ansible_influx_cqs.json.results[0].error is defined)
+
+- shell:
+# TODO 
+- debug: var=ansible_influx_cqs
+- set_fact:
+    ifx_cqs: "{{ansible_influx_cqs.json.results[0].series[0]['values']|flatten|default([])}}" # if ansible_influx_cqs.json.results[0].series[0].values is defined else default([])}}"
+  when: ansible_influx_cqs.json.results[0].series[0]|search('match', 'values') is defined
+
+

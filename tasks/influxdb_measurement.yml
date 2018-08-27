@@ -1,0 +1,82 @@
+---
+
+- name: Set measurement variable
+  set_fact:
+    ifx_mm: "{{ifx_db.measurements[measurement]}}"
+    ifx_cq_name: "cq_{{measurement}}_{{ifx_db.cq_interval}}"
+    ifx_mm_name: '"{{measurement}}"'
+
+- name: Set defaults
+  set_fact:
+    msg_prefix: "{{ifx_db.name}}/{{measurement}} -"
+    #source_mm: '{{"" if ifx_db.source is not defined else "{{ifx_db.source.name}}"."{{ifx_db.source.rp_name}}"."{{measurement}}"}}'
+    source_mm: "{{'\"'+ifx_db.source.name+'\".\"'+ifx_db.source.rp_name+'\".\"'+measurement+'\"' if ifx_db.source is defined else ''}}"
+    #source_mm: "{{'\"'+ifx_db.source.name+'\"' if ifx_db.source is defined else ''}}"
+    target_mm: '"{{ifx_db.name}}"."{{ifx_db.rp_name}}"."{{measurement}}"'
+    cq_select: "{{ifx_mm.select if ifx_mm.select is defined else ansible_influx_queries[measurement]}}"
+    bf_where: "{{'AND '+ifx_mm.where if ifx_mm.where is defined else ifx_bf_where}}"
+    cq_where: "{{'WHERE '+ifx_mm.where if ifx_mm.where is defined else ifx_cq_where}}"
+    cq_interval: "{{ifx_mm.interval if ifx_mm.interval is defined else ifx_cq_interval}}"
+    cq_resample: "{{'RESAMPLE' if ifx_mm.every is defined or ifx_mm.for is defined else ifx_cq_resample}}"
+    cq_resample_every: "{{'EVERY '+ifx_mm.every if ifx_mm.every is defined else ifx_cq_resample_every}}"
+    cq_resample_for: "{{'FOR '+ifx_mm.for if ifx_mm.for is defined else ifx_cq_resample_for}}"
+    mm_backfill: "{{ifx_mm.backfill if ifx_mm.backfill is defined else ifx_backfill}}"
+
+- name: "{{msg_prefix}} Get fields from source"
+  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SHOW FIELD KEYS FROM {{measurement}}" return_content=yes
+  register: ansible_influx_mm_fields
+  when: ifx_db.source is defined
+
+# only works global per influxdb instance? --> move to main.yml
+- name: "{{msg_prefix}} Get continuous queries"
+  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW CONTINUOUS QUERIES" return_content=yes
+  register: ansible_influx_mm_cqs
+
+- debug: var=ansible_influx_mm_cqs
+
+# TODO
+- set_fact:
+    ifx_mm_fields: "{{ansible_influx_mm_fields.json.results[0].series[0]['values']|select('match', '^!(integer|float|string)$')|flatten if ansible_influx_mm_fields.json.results[0].series is defined else []}}"
+    ifx_mm_cqs: "{{ansible_influx_mm_cqs.json.results[0].series[0]['values']|select('match', '^SELECT.*') if ansible_influx_mm_cqs.json.results[0].series[0]['values'] is defined else []}}"
+
+- debug: var=ifx_mm_cqs
+
+- name: "{{msg_prefix}} Backfilling measurement"
+  uri:
+    url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
+    method: POST
+    body: >
+      q={{cq_select}} INTO {{target_mm}} FROM {{source_mm}}
+      WHERE time > now() - {{seq}}{{ifx_db.duration.unit}} AND time <= now() - {{seq|int - 1}}{{ifx_db.duration.unit}}
+      {{bf_where}} GROUP BY time({{cq_interval}}),*
+    return_content: yes
+  with_sequence: start={{ifx_db.duration.amount|int}} end=1 stride=-1
+  loop_control: { loop_var: seq }
+  when: mm_backfill and measurement not in ifx_mms and ifx_db.source is defined
+  register: ansible_influx_mm_backfill
+  changed_when: ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined and ansible_influx_mm_backfill.json.results[0].statement_id == 0
+  failed_when: ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined and ansible_influx_mm_backfill.json.results[0].error is defined
+
+- set_fact:
+    mm_backfill_result: "{{ansible_influx_mm_backfill.json.results[0].series[0]['values']|select('match', '^[0-9]*$')|sum()}}"
+  when: mm_backfill and ansible_influx_mm_backfill is changed
+- debug: msg="Total series written = {{mm_backfill_result}}"
+  when: mm_backfill and ansible_influx_mm_backfill is changed
+
+- debug: msg='q=CREATE CONTINUOUS QUERY "{{ifx_cq_name}}" ON "{{ifx_db.name}}" {{cq_resample}} {{cq_resample_every}} {{cq_resample_for}} BEGIN {{cq_select}} INTO {{target_mm}} FROM {{source_mm}} {{cq_where}} GROUP BY time({{cq_interval}}),* END'
+
+- name: "{{msg_prefix}} Creating continuous query {{ifx_cq_name}}"
+  uri:
+    url: "{{ansible_influx_url}}/query"
+    method: POST
+    body: >
+      q=CREATE CONTINUOUS QUERY "{{ifx_cq_name}}" ON "{{ifx_db.name}}"
+      {{cq_resample}} {{cq_resample_every}} {{cq_resample_for}}
+      BEGIN {{cq_select}} INTO {{target_mm}} FROM {{source_mm}} {{cq_where}}
+      GROUP BY time({{cq_interval}}),* END
+    return_content: yes
+  register: ansible_influx_mm_cq
+  when: ifx_db.source is defined and ifx_cq_name not in ifx_mm_cqs
+
+- debug: var=ansible_influx_mm_cq
+

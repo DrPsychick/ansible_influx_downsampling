@@ -1,0 +1,18 @@
+---
+
+ansible_influx_url: "http://localhost:8086"
+
+ansible_influx_databases:
+  level_1:
+    name: "telegraf"
+    # no source -> no CQ or backfill
+    duration:
+      amount: "30"
+      unit: "d"
+    # cq_interval: only needed when doing cq
+    # cq_where: only useful when doing cq
+    # cq_resample: only useful when doing cq
+    # backfill: only needed when doing cq
+    # measurements: only needed when doing cq
+
+

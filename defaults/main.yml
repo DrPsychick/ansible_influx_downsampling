@@ -1,0 +1,15 @@
+
+ansible_influx_url: "http://localhost:8086"
+
+# docker run --rm -it --name influxdb-test -p 8086:8086 docker-influxdb:latest
+ansible_influx_databases:
+  level_1:
+    name: "telegraf"
+    rp_name: "rp_30d"
+    duration: { amount: "30", unit: "d" }
+    cq_interval: "15m"
+    measurements: { cpu }
+
+
+ansible_influx_queries:
+  cpu: SELECT mean(usage_user) AS usage_user
