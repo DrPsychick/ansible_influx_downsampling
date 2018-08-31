@@ -13,3 +13,5 @@ ansible_influx_databases:
 
 ansible_influx_queries:
   cpu: SELECT mean(usage_user) AS usage_user
+  influxdb: SELECT max(n_shards) AS n_shards
+  influxdb_cq: SELECT sum(queryFail) AS queryFail, sum(queryOk) AS queryOk

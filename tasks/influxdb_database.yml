@@ -1,10 +1,10 @@
 ---
 
-- name: Set database variable
+- name: "{{ansible_influx_databases[database].name}} - Set database variable"
   set_fact:
     ifx_db: "{{ansible_influx_databases[database]}}"
 
-- name: Set defaults
+- name: "{{ifx_db.name}} - Set defaults"
   set_fact:
     msg_prefix: "{{ifx_db.name}} -"
     ifx_db: "{{ifx_db|combine({ 'rp_name': 'rp_'+ifx_db.duration.amount+ifx_db.duration.unit if ifx_db.rp_name is not defined else ifx_db.rp_name })}}"
