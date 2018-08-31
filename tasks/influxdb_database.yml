@@ -56,5 +56,5 @@
   include_tasks: influxdb_measurement.yml measurement={{mm_item}}
   with_items: "{{ifx_db.measurements}}"
   loop_control: { loop_var: mm_item }
-  when: ifx_db.measurements is defined and (db_create is changed or (ifx_mms is defined and mm_item not in ifx_mms))
+  when: ifx_db.measurements is defined and (ansible_influx_db_create is changed or (ifx_mms is defined and mm_item not in ifx_mms))
 

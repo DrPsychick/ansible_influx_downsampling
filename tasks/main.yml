@@ -19,7 +19,7 @@
   include_tasks: influxdb_database.yml database={{db_item}}
   with_items: "{{ansible_influx_databases|sort}}"
   loop_control: { loop_var: db_item }
-  when: false
+#  when: false
 
 # AFTER setup:
 - name: Show continuous queries

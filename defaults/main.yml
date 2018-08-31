@@ -87,7 +87,17 @@ ansible_influx_queries:
     SELECT mean(queryFail) AS queryFail, mean(queryOk) AS queryOk
   influxdb_database: >
     SELECT mean(numMeasurements) AS numMeasurements, mean(numSeries) AS numSeries
-  #influxdb_httpd:
+  influxdb_httpd:
+  influxdb_memstats:
+  influxdb_queryExecutor:
+  influxdb_runtime:
+  influxdb_shard:
+  influxdb_subscriber:
+  influxdb_tsm1_cache:
+  influxdb_tsm1_engine:
+  influxdb_tsm1_filestore:
+  influxdb_tsm1_wal:
+  influxdb_write:
   docker: >
     SELECT mean(n_containers) AS n_containers, mean(n_containers_paused) AS n_containers_paused, mean(n_containers_running) AS n_containers_running
     , mean(n_containers_stopped) AS n_containers_stopped, mean(n_cpus) AS n_cpus, mean(n_goroutines) AS n_goroutines, mean(n_images) AS n_images
@@ -112,7 +122,8 @@ ansible_influx_queries:
     SELECT mean(throttling_periods) AS throttling_periods, mean(throttling_throttled_periods) AS throttling_throttled_periods
     , mean(throttling_throttled_time) AS throttling_throttled_time, mean(usage_in_kernelmode) AS usage_in_kernelmode, mean(usage_in_usermode) AS usage_in_usermode
     , mean(usage_percent) AS usage_percent, mean(usage_system) AS usage_system, mean(usage_total) AS usage_total
-  #docker_container_health: # how to aggregate string values?
+  docker_container_health: >
+    SELECT last(health_status) AS health_status, last(failing_streak) AS failing_streak
   docker_container_mem: >
     SELECT mean(active_anon) AS active_anon, mean(active_file) AS active_file, mean(cache) AS cache, mean(fail_count) AS fail_count
     , mean(hierarchical_memory_limit) AS hierarchical_memory_limit, mean(inactive_anon) AS inactive_anon, mean(inactive_file) AS inactive_file, mean("limit") AS "limit"
@@ -125,3 +136,11 @@ ansible_influx_queries:
   docker_container_net: >
     SELECT mean(rx_bytes) AS rx_bytes, mean(rx_dropped) AS rx_dropped, mean(rx_errors) AS rx_errors, mean(rx_packets) AS rx_packets, mean(tx_bytes) AS tx_bytes
     , mean(tx_dropped) AS tx_dropped, mean(tx_errors) AS tx_errors, mean(tx_packets) AS tx_packets
+  win_cpu:
+  win_disk:
+  win_diskio:
+  win_mem:
+  win_net:
+  win_perf_counters:
+  win_swap:
+  win_system:

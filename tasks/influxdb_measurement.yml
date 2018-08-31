@@ -46,6 +46,8 @@
 - debug: var=ifx_mm_fields
 - debug: var=ifx_mm_cqs
 
+#- shell:
+
 - name: "{{msg_prefix}} Backfilling measurement"
   uri:
     url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
@@ -62,8 +64,9 @@
   changed_when: ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined and ansible_influx_mm_backfill.json.results[0].statement_id == 0
   failed_when: ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined and ansible_influx_mm_backfill.json.results[0].error is defined
 
+- debug: var=ansible_influx_mm_backfill
 - set_fact:
-    mm_backfill_result: "{{ansible_influx_mm_backfill.json.results[0].series[0]['values']|select('match', '^[0-9]*$')|sum()}}"
+    mm_backfill_result: "{{ansible_influx_mm_backfill.results.json.results[0].series[0]['values']|select('match', '^[0-9]*$')|sum()}}"
   when: mm_backfill and ansible_influx_mm_backfill is changed
 - debug: msg="Total series written = {{mm_backfill_result}}"
   when: mm_backfill and ansible_influx_mm_backfill is changed
