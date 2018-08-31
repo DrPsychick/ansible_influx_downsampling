@@ -10,6 +10,120 @@ ansible_influx_databases:
     cq_interval: "15m"
     measurements: { cpu }
 
+# Predefined set of queries for standard telegraf inputs
+# You can overwrite these with selectively the variable "my_ansible_influx_queries" 
+# Use the same structure as below.
 
+# Attention!
+# columns have to be named explicitly, otherwise influxdb will prepend the aggregation 
+# method name (e.g. mean(usage_user) -> mean_usage_user)
+# see https://github.com/influxdata/influxdb/issues/7332
 ansible_influx_queries:
-  cpu: SELECT mean(usage_user) AS usage_user
+  cpu: >
+    SELECT mean(usage_guest) AS usage_guest, mean(usage_guest_nice) AS usage_guest_nice, mean(usage_idle) AS usage_idle
+    , mean(usage_irq) AS usage_irq, mean(usage_iowait) AS usage_iowait, mean(usage_nice) AS usage_nice
+    , mean(usage_softirq) AS usage_softirq, mean(usage_steal) AS usage_steal, mean(usage_system) AS usage_system, mean(usage_user) AS usage_user
+  mem: >
+    SELECT mean(active) AS active, mean(available) AS available, mean(available_percent) AS available_percent
+    , mean(buffered) AS buffered, mean(cached) AS cached, mean(free) AS free, mean(inactive) AS inactive
+    , mean(slab) AS slab, mean(total) AS total, mean(used) AS used, mean(used_percent) AS used_percent, mean(wired) AS wired
+  disk: >
+    SELECT mean(free) AS free, mean(total) AS total, mean(used) AS used, mean(used_percent) AS used_percent
+    , mean(inodes_free) AS inodes_free, mean(inodes_total) AS inodes_total, mean(inodes_used) AS inodes_used
+  swap: >
+    SELECT mean(free) AS free, mean("in") AS "in", mean("out") AS "out", mean(total) AS total, mean(used) AS used, mean(used_percent) AS used_percent
+  diskio: >
+    SELECT max(io_time) AS io_time, mean(iops_in_progress) AS iops_in_progress, max(read_bytes) as read_bytes
+    , max(read_time) AS read_time, max(reads) AS reads, max(weighted_io_time) AS weighted_io_time
+    , max(write_bytes) AS write_bytes, max(write_time) AS write_time, max(writes) AS writes
+  kernel: >
+    SELECT mean(boottime) AS boottime, max(context_switches) AS context_switches, mean(entropy_avail) AS entropy_avail, max(interrupts) AS interrupts, max(processes_forked) AS processes_forked
+  processes: >
+    SELECT mean(blocked) AS blocked, mean(dead) AS dead, mean(idle) AS idle, mean(paging) AS paging, mean(running) AS running
+    , mean(sleeping) AS sleeping, mean(stopped) AS stopped, mean(total) AS total, mean(total_threads) AS total_threads, mean(unknown) AS unknown, mean(zombies) AS zombies
+  system: >
+    SELECT mean(load1) AS load1, mean(load15) AS load15, mean(load5) AS load5, mean(n_cpus) AS n_cpus, mean(n_users) AS n_users, max(uptime) AS uptime, last(update_format) AS update_format
+  net: >
+    SELECT max(bytes_recv) AS bytes_recv, max(bytes_sent) AS bytes_sent, mean(drop_in) AS drop_in, mean(drop_out) AS drop_out, mean(err_in) AS err_in
+    , mean(err_out) AS err_out, mean(icmp_inaddrmaskreps) AS icmp_inaddrmaskreps, mean(icmp_inaddrmasks) AS icmp_inaddrmasks, mean(icmp_incsumerrors) AS icmp_incsumerrors
+    , mean(icmp_indestunreachs) AS icmp_indestunreachs, mean(icmp_inechoreps) AS icmp_inechoreps, mean(icmp_inechos) AS icmp_inechos, mean(icmp_inerrors) AS icmp_inerrors
+    , mean(icmp_inmsgs) AS icmp_inmsgs, mean(icmp_inparmprobs) AS icmp_inparmprobs, mean(icmp_inredirects) AS icmp_inredirects, mean(icmp_insrcquenchs) AS icmp_insrcquenchs
+    , mean(icmp_intimeexcds) AS icmp_intimeexcds, mean(icmp_intimestampreps) AS icmp_intimestampreps, mean(icmp_intimestamps) AS icmp_intimestamps
+    , mean(icmp_outaddrmaskreps) AS icmp_outaddrmaskreps, mean(icmp_outaddrmasks) AS icmp_outaddrmasks, mean(icmp_outdestunreachs) AS icmp_outdestunreachs
+    , mean(icmp_outechoreps) AS icmp_outechoreps, mean(icmp_outechos) AS icmp_outechos, mean(icmp_outerrors) AS icmp_outerrors, mean(icmp_outmsgs) AS icmp_outmsgs
+    , mean(icmp_outparmprobs) AS icmp_outparmprobs, mean(icmp_outredirects) AS icmp_outredirects, mean(icmp_outsrcquenchs) AS icmp_outsrcquenchs
+    , mean(icmp_outtimeexcds) AS icmp_outtimeexcds, mean(icmp_outtimestampreps) AS icmp_outtimestampreps, mean(icmp_outtimestamps) AS icmp_outtimestamps
+    , mean(icmpmsg_intype0) AS icmpmsg_intype0, mean(icmpmsg_intype11) AS icmpmsg_intype11, mean(icmpmsg_intype3) AS icmpmsg_intype3, mean(icmpmsg_intype4) AS icmpmsg_intype4
+    , mean(icmpmsg_intype5) AS icmpmsg_intype5, mean(icmpmsg_intype8) AS icmpmsg_intype8, mean(icmpmsg_outtype0) AS icmpmsg_outtype0, mean(icmpmsg_outtype11) AS icmpmsg_outtype11
+    , mean(icmpmsg_outtype3) AS icmpmsg_outtype3, mean(icmpmsg_outtype5) AS icmpmsg_outtype5, mean(icmpmsg_outtype8) AS icmpmsg_outtype8, mean(ip_defaultttl) AS ip_defaultttl
+    , mean(ip_forwarding) AS ip_forwarding, mean(ip_forwdatagrams) AS ip_forwdatagrams, mean(ip_fragcreates) AS ip_fragcreates, mean(ip_fragfails) AS ip_fragfails
+    , mean(ip_fragoks) AS ip_fragoks, mean(ip_inaddrerrors) AS ip_inaddrerrors, mean(ip_indelivers) AS ip_indelivers, mean(ip_indiscards) AS ip_indiscards
+    , mean(ip_inhdrerrors) AS ip_inhdrerrors, mean(ip_inreceives) AS ip_inreceives, mean(ip_inunknownprotos) AS ip_inunknownprotos, mean(ip_outdiscards) AS ip_outdiscards
+    , mean(ip_outnoroutes) AS ip_outnoroutes, mean(ip_outrequests) AS ip_outrequests, mean(ip_reasmfails) AS ip_reasmfails, mean(ip_reasmoks) AS ip_reasmoks
+    , mean(ip_reasmreqds) AS ip_reasmreqds, mean(ip_reasmtimeout) AS ip_reasmtimeout, mean(packets_recv) AS packets_recv, mean(packets_sent) AS packets_sent
+    , mean(tcp_activeopens) AS tcp_activeopens, mean(tcp_attemptfails) AS tcp_attemptfails, mean(tcp_currestab) AS tcp_currestab, mean(tcp_estabresets) AS tcp_estabresets
+    , mean(tcp_incsumerrors) AS tcp_incsumerrors, mean(tcp_inerrs) AS tcp_inerrs, mean(tcp_insegs) AS tcp_insegs, mean(tcp_maxconn) AS tcp_maxconn
+    , mean(tcp_outrsts) AS tcp_outrsts, mean(tcp_outsegs) AS tcp_outsegs, mean(tcp_passiveopens) AS tcp_passiveopens, mean(tcp_retranssegs) AS tcp_retranssegs
+    , mean(tcp_rtoalgorithm) AS tcp_rtoalgorithm, mean(tcp_rtomax) AS tcp_rtomax, mean(tcp_rtomin) AS tcp_rtomin, mean(udp_ignoredmulti) AS udp_ignoredmulti
+    , mean(udp_incsumerrors) AS udp_incsumerrors, mean(udp_indatagrams) AS udp_indatagrams, mean(udp_inerrors) AS udp_inerrors, mean(udp_noports) AS udp_noports
+    , mean(udp_outdatagrams) AS udp_outdatagrams, mean(udp_rcvbuferrors) AS udp_rcvbuferrors, mean(udp_sndbuferrors) AS udp_sndbuferrors
+    , mean(udplite_ignoredmulti) AS udplite_ignoredmulti, mean(udplite_incsumerrors) AS udplite_incsumerrors, mean(udplite_indatagrams) AS udplite_indatagrams
+    , mean(udplite_inerrors) AS udplite_inerrors, mean(udplite_noports) AS udplite_noports, mean(udplite_outdatagrams) AS udplite_outdatagrams
+    , mean(udplite_rcvbuferrors) AS udplite_rcvbuferrors, mean(udplite_sndbuferrors) AS udplite_sndbuferrors
+  netstat: >
+    SELECT mean(tcp_close) AS tcp_close, mean(tcp_close_wait) AS tcp_close_wait,  mean(tcp_closing) AS tcp_closing,  mean(tcp_established) AS tcp_established
+    ,  mean(tcp_fin_wait1) AS tcp_fin_wait1,  mean(tcp_fin_wait2) AS tcp_fin_wait2,  mean(tcp_last_ack) AS tcp_last_ack,  mean(tcp_listen) AS tcp_listen
+    ,  mean(tcp_none) AS tcp_none,  mean(tcp_syn_recv) AS tcp_syn_recv,  mean(tcp_syn_sent) AS tcp_syn_sent,  mean(tcp_time_wait) AS tcp_time_wait
+    ,  mean(udp_socket) AS udp_socket
+  procstat: >
+    SELECT mean(cpu_time_guest) AS cpu_time_guest, mean(cpu_time_guest_nice) AS cpu_time_guest_nice, mean(cpu_time_idle) AS cpu_time_idle
+    , mean(cpu_time_iowait) AS cpu_time_iowait, mean(cpu_time_irq) AS cpu_time_irq, mean(cpu_time_nice) AS cpu_time_nice, mean(cpu_time_soft_irq) AS cpu_time_soft_irq
+    , mean(cpu_time_steal) AS cpu_time_steal, mean(cpu_time_stolen) AS cpu_time_stolen, mean(cpu_time_system) AS cpu_time_system, mean(cpu_time_user) AS cpu_time_user
+    , mean(cpu_usage) AS cpu_usage, mean(involuntary_context_switches) AS involuntary_context_switches, mean(memory_rss) AS memory_rss, mean(memory_swap) AS memory_swap
+    , mean(memory_vms) AS memory_vms, mean(num_fds) AS num_fds, mean(num_threads) AS num_threads, mean(voluntary_context_switches) AS voluntary_context_switches
+  influxdb: >
+    SELECT mean(n_shards) AS n_shards
+  influxdb_cq: >
+    SELECT mean(queryFail) AS queryFail, mean(queryOk) AS queryOk
+  influxdb_database: >
+    SELECT mean(numMeasurements) AS numMeasurements, mean(numSeries) AS numSeries
+  #influxdb_httpd:
+  docker: >
+    SELECT mean(n_containers) AS n_containers, mean(n_containers_paused) AS n_containers_paused, mean(n_containers_running) AS n_containers_running
+    , mean(n_containers_stopped) AS n_containers_stopped, mean(n_cpus) AS n_cpus, mean(n_goroutines) AS n_goroutines, mean(n_images) AS n_images
+    , mean(n_listener_events) AS n_listener_events, mean(n_used_file_descriptors) AS n_used_file_descriptors
+  docker_container_blkio: >
+    SELECT mean(io_merged_recursive_async) AS io_merged_recursive_async, mean(io_merged_recursive_read) AS io_merged_recursive_read
+    , mean(io_merged_recursive_sync) AS io_merged_recursive_sync, mean(io_merged_recursive_total) AS io_merged_recursive_total
+    , mean(io_merged_recursive_write) AS io_merged_recursive_write, mean(io_queue_recursive_async) AS io_queue_recursive_async
+    , mean(io_queue_recursive_read) AS io_queue_recursive_read, mean(io_queue_recursive_sync) AS io_queue_recursive_sync
+    , mean(io_queue_recursive_total) AS io_queue_recursive_total, mean(io_queue_recursive_write) AS io_queue_recursive_write
+    , mean(io_service_bytes_recursive_async) AS io_service_bytes_recursive_async, mean(io_service_bytes_recursive_read) AS io_service_bytes_recursive_read
+    , mean(io_service_bytes_recursive_sync) AS io_service_bytes_recursive_sync, mean(io_service_bytes_recursive_total) AS io_service_bytes_recursive_total
+    , mean(io_service_bytes_recursive_write) AS io_service_bytes_recursive_write, mean(io_service_time_recursive_async) AS io_service_time_recursive_async
+    , mean(io_service_time_recursive_read) AS io_service_time_recursive_read, mean(io_service_time_recursive_sync) AS io_service_time_recursive_sync
+    , mean(io_service_time_recursive_total) AS io_service_time_recursive_total, mean(io_service_time_recursive_write) AS io_service_time_recursive_write
+    , mean(io_serviced_recursive_async) AS io_serviced_recursive_async, mean(io_serviced_recursive_read) AS io_serviced_recursive_read
+    , mean(io_serviced_recursive_sync) AS io_serviced_recursive_sync, mean(io_serviced_recursive_total) AS io_serviced_recursive_total
+    , mean(io_serviced_recursive_write) AS io_serviced_recursive_write, mean(io_time_recursive) AS io_time_recursive, mean(io_wait_time_async) AS io_wait_time_async
+    , mean(io_wait_time_read) AS io_wait_time_read, mean(io_wait_time_sync) AS io_wait_time_sync, mean(io_wait_time_total) AS io_wait_time_total
+    , mean(io_wait_time_write) AS io_wait_time_write, mean(sectors_recursive) AS sectors_recursive
+  docker_container_cpu: >
+    SELECT mean(throttling_periods) AS throttling_periods, mean(throttling_throttled_periods) AS throttling_throttled_periods
+    , mean(throttling_throttled_time) AS throttling_throttled_time, mean(usage_in_kernelmode) AS usage_in_kernelmode, mean(usage_in_usermode) AS usage_in_usermode
+    , mean(usage_percent) AS usage_percent, mean(usage_system) AS usage_system, mean(usage_total) AS usage_total
+  #docker_container_health: # how to aggregate string values?
+  docker_container_mem: >
+    SELECT mean(active_anon) AS active_anon, mean(active_file) AS active_file, mean(cache) AS cache, mean(fail_count) AS fail_count
+    , mean(hierarchical_memory_limit) AS hierarchical_memory_limit, mean(inactive_anon) AS inactive_anon, mean(inactive_file) AS inactive_file, mean("limit") AS "limit"
+    , mean(mapped_file) AS mapped_file, mean(max_usage) AS max_usage, mean(pgfault) AS pgfault, mean(pgmajfault) AS pgmajfault, mean(pgpgin) AS pgpgin
+    , mean(pgpgout) AS pgpgout, mean(rss) AS rss, mean(rss_huge) AS rss_huge, mean(total_active_anon) AS total_active_anon, mean(total_active_file) AS total_active_file
+    , mean(total_cache) AS total_cache, mean(total_inactive_anon) AS total_inactive_anon, mean(total_inactive_file) AS total_inactive_file
+    , mean(total_mapped_file) AS total_mapped_file, mean(total_pgfault) AS total_pgfault, mean(total_pgmajfault) AS total_pgmajfault, mean(total_pgpgin) AS total_pgpgin
+    , mean(total_pgpgout) AS total_pgpgout, mean(total_rss) AS total_rss, mean(total_rss_huge) AS total_rss_huge, mean(total_unevictable) AS total_unevictable
+    , mean(total_writeback) AS total_writeback, mean(unevictable) AS unevictable, mean(usage) AS usage, mean(usage_percent) AS usage_percent, mean(writeback) AS writeback
+  docker_container_net: >
+    SELECT mean(rx_bytes) AS rx_bytes, mean(rx_dropped) AS rx_dropped, mean(rx_errors) AS rx_errors, mean(rx_packets) AS rx_packets, mean(tx_bytes) AS tx_bytes
+    , mean(tx_dropped) AS tx_dropped, mean(tx_errors) AS tx_errors, mean(tx_packets) AS tx_packets
+
+
