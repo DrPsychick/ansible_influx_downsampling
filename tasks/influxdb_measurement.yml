@@ -1,12 +1,12 @@
 ---
 
-- name: Set measurement variable
+- name: "{{ifx_db.name}}/{{measurement}} - Set measurement variable"
   set_fact:
     ifx_mm: "{{ifx_db.measurements[measurement]}}"
     ifx_cq_name: "cq_{{measurement}}_{{ifx_db.cq_interval}}"
     ifx_mm_name: '"{{measurement}}"'
 
-- name: Set defaults
+- name: "{{ifx_db.name}}/{{measurement}} - Set defaults"
   set_fact:
     msg_prefix: "{{ifx_db.name}}/{{measurement}} -"
     #source_mm: '{{"" if ifx_db.source is not defined else "{{ifx_db.source.name}}"."{{ifx_db.source.rp_name}}"."{{measurement}}"}}'
@@ -32,13 +32,18 @@
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW CONTINUOUS QUERIES" return_content=yes
   register: ansible_influx_mm_cqs
 
+- debug: var=ansible_influx_mm_fields
 - debug: var=ansible_influx_mm_cqs
 
 # TODO
 - set_fact:
-    ifx_mm_fields: "{{ansible_influx_mm_fields.json.results[0].series[0]['values']|select('match', '^!(integer|float|string)$')|flatten if ansible_influx_mm_fields.json.results[0].series is defined else []}}"
+    ifx_mm_fields: "{{ansible_influx_mm_fields.json.results[0].series[0]['values']|select('match', 'integer') if ansible_influx_mm_fields.json.results[0].series[0] is defined else []}}"
     ifx_mm_cqs: "{{ansible_influx_mm_cqs.json.results[0].series[0]['values']|select('match', '^SELECT.*') if ansible_influx_mm_cqs.json.results[0].series[0]['values'] is defined else []}}"
 
+- debug: msg="{{item}}"
+  with_items: "{{ifx_mm_cqs|list}}"
+
+- debug: var=ifx_mm_fields
 - debug: var=ifx_mm_cqs
 
 - name: "{{msg_prefix}} Backfilling measurement"

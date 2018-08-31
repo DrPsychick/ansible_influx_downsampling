@@ -125,5 +125,3 @@ ansible_influx_queries:
   docker_container_net: >
     SELECT mean(rx_bytes) AS rx_bytes, mean(rx_dropped) AS rx_dropped, mean(rx_errors) AS rx_errors, mean(rx_packets) AS rx_packets, mean(tx_bytes) AS tx_bytes
     , mean(tx_dropped) AS tx_dropped, mean(tx_errors) AS tx_errors, mean(tx_packets) AS tx_packets
-
-

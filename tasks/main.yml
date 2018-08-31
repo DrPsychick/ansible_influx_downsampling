@@ -1,6 +1,5 @@
 ---
 
-# gather facts
 - name: Get databases
   uri: url="{{ansible_influx_url}}/query" method=POST body="q=SHOW DATABASES" return_content=yes
   register: ansible_influx_dbs
@@ -8,16 +7,19 @@
   failed_when: ansible_influx_dbs.status != 200 or (ansible_influx_dbs.rc is defined and ansible_influx_dbs.rc == 1)
     or (ansible_influx_dbs.json is defined and ansible_influx_dbs.json.results[0].error is defined)
 
-- debug: var=ansible_influx_dbs
+#- debug: var=ansible_influx_dbs
 
 - name: Set facts
   set_fact:
-    ifx_dbs: "{{ansible_influx_dbs.json.results[0].series[0]['values']|flatten if ansible_influx_dbs.json.results is defined else default([])}}"
+    ifx_dbs: "{{ansible_influx_dbs.json.results[0].series[0]['values']|flatten|default([])}}"
+# if ansible_influx_dbs.json.results[0].series[0].values is defined else default([])}}"
+    ansible_influx_queries: "{{ansible_influx_queries|combine(my_ansible_influx_queries|default({}))}}"
 
 - name: Setup databases
   include_tasks: influxdb_database.yml database={{db_item}}
   with_items: "{{ansible_influx_databases|sort}}"
   loop_control: { loop_var: db_item }
+  when: false
 
 # AFTER setup:
 - name: Show continuous queries
@@ -27,11 +29,13 @@
   failed_when: (ansible_influx_cqs.rc is defined and ansible_influx_cqs.rc == 1)
     or (ansible_influx_cqs.json is defined and ansible_influx_cqs.json.results[0].error is defined)
 
-- shell:
+#- shell:
 # TODO 
 - debug: var=ansible_influx_cqs
 - set_fact:
-    ifx_cqs: "{{ansible_influx_cqs.json.results[0].series[0]['values']|flatten|default([])}}" # if ansible_influx_cqs.json.results[0].series[0].values is defined else default([])}}"
-  when: ansible_influx_cqs.json.results[0].series[0]|search('match', 'values') is defined
+    ifx_cqs: "{{ansible_influx_cqs.json.results[0].series|select('match', 'values')|flatten|default([])}}"
+# if ansible_influx_cqs.json.results[0].series[0].values is defined else default([])}}"
+#  when: ansible_influx_cqs.json.results[0].series[0]|search('match', 'values') is defined
 
+- debug: var=ifx_cqs
 
