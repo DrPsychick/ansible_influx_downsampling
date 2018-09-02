@@ -1,0 +1,41 @@
+---
+services: 
+  - docker
+language: python
+python: "2.7"
+
+sudo: required
+dist: xenial
+
+before_install:
+  # Make sure everything's up to date.
+  - "sudo apt-get update -qq"
+  - docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
+
+install:
+  # Install Ansible.
+  - "pip install ansible"
+
+  # Add ansible.cfg to pick up roles path.
+  - printf "[defaults]\nroles_path = ../" > ansible.cfg
+
+script:
+  # Check the role/playbook's syntax.
+  - "ansible-playbook -i tests/inventory tests/test.yml --syntax-check"
+  # Run the role/playbook with ansible-playbook.
+  - "ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo"
+
+  # Run the role/playbook again, checking to make sure it's idempotent.
+  - >
+    ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo
+    | grep -q 'changed=0.*failed=0'
+    && (echo 'Idempotence test: pass' && exit 0)
+    || (echo 'Idempotence test: fail' && exit 1)
+
+after_script:
+  - curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW DATABASES"
+  - curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW RETENTION POLICIES"
+
+notifications:
+  webhooks: https://galaxy.ansible.com/api/v1/notifications/
+

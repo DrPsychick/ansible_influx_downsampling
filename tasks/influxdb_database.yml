@@ -1,0 +1,66 @@
+---
+
+- name: "{{ansible_influx_databases[database].name}} - Set database variable"
+  set_fact:
+    ifx_db: "{{ansible_influx_databases[database]}}"
+
+- name: "{{ifx_db.name}} - Set defaults"
+  set_fact:
+    msg_prefix: "{{ifx_db.name}} -"
+    ifx_db: "{{ifx_db|combine({ 'rp_name': 'rp_'+ifx_db.duration.amount+ifx_db.duration.unit if ifx_db.rp_name is not defined else ifx_db.rp_name })}}"
+    ifx_bf_where: "{{'AND '+ifx_db.cq_where if ifx_db.cq_where is defined else ''}}"
+    ifx_cq_where: "{{'WHERE '+ifx_db.cq_where if ifx_db.cq_where is defined else ''}}"
+    ifx_cq_interval: "{{ifx_db.cq_interval|default('')}}"
+    ifx_cq_resample: "{{'RESAMPLE ' if ifx_db.cq_resample is defined else ''}}"
+    ifx_cq_resample_every: "{{'EVERY '+ifx_db.cq_resample.every if ifx_db.cq_resample is defined and ifx_db.cq_resample.every is defined else ''}}"
+    ifx_cq_resample_for: "{{'FOR '+ifx_db.cq_resample.for if ifx_db.cq_resample is defined and ifx_db.cq_resample.for is defined else ''}}"
+    ifx_source: "{{'\"foo\"' if ifx_db.source is defined else false}}"
+    ifx_backfill: "{{ifx_db.backfill|default(false)}}"
+
+- name: "{{msg_prefix}} Create database"
+  uri: url="{{ansible_influx_url}}/query" method=POST body="q=CREATE DATABASE {{ifx_db.name}}" return_content=yes
+  when: ifx_db.name not in ifx_dbs
+  register: ansible_influx_db_create
+  changed_when: ansible_influx_db_create.status == 200 and ansible_influx_db_create.json is defined and ansible_influx_db_create.json.results[0].statement_id == 0
+
+- name: "{{msg_prefix}} Get retention policies"
+  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW RETENTION POLICIES" return_content=yes
+  when: ansible_influx_db_create is not changed
+  register: ansible_influx_rps
+
+- name: "{{msg_prefix}} Get SOURCE measurements"
+  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SHOW MEASUREMENTS" return_content=yes
+  register: ansible_influx_source_mms
+  when: ifx_db.source is defined
+
+- name: "{{msg_prefix}} Get TARGET measurements"
+  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW MEASUREMENTS" return_content=yes
+  register: ansible_influx_mms
+
+- name: "{{msg_prefix}} List of retention policies and measurements"
+  set_fact:
+    ifx_rps: "{{ansible_influx_rps.json.results[0].series[0]['values']|flatten if ansible_influx_db_create is not changed else []}}"
+    ifx_mms: "{{ansible_influx_mms.json.results[0].series|default([])|rejectattr('values', 'callable')|map(attribute='values')|flatten}}"
+    ifx_source_mms: "{{ansible_influx_source_mms.json.results[0].series|rejectattr('values', 'callable')|map(attribute='values')|flatten if ansible_influx_source_mms.json is defined else []}}"
+
+- debug: msg="List of measurements on SOURCE = {{ifx_source_mms|join(', ')}}"
+  when: ifx_db.source is defined
+
+- name: "{{msg_prefix}} Create retention policy {{ifx_db.rp_name}}"
+  uri:
+    url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
+    method: POST
+    body: >
+      q=CREATE RETENTION POLICY "{{ifx_db.rp_name}}" ON "{{ifx_db.name}}"
+      DURATION {{ifx_db.duration.amount+ifx_db.duration.unit}} REPLICATION 1 DEFAULT
+    return_content: yes
+  when: ansible_influx_db_create is changed or (ifx_rps is defined and ifx_db.rp_name not in ifx_rps)
+  register: ansible_influx_rp_create
+  changed_when: ansible_influx_rp_create.status == 200 and ansible_influx_rp_create.json is defined and ansible_influx_rp_create.json.results[0].statement_id == 0
+
+- name: "{{msg_prefix}} Create measurements"
+  include_tasks: influxdb_measurement.yml measurement={{mm_item}}
+  with_items: "{{ifx_db.measurements}}"
+  loop_control: { loop_var: mm_item }
+  when: ifx_db.measurements is defined and (ansible_influx_db_create is changed or (ifx_mms is defined and mm_item not in ifx_mms))
+

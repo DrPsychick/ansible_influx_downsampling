@@ -1,0 +1,8 @@
+---
+
+ansible_influx_databases:
+  level_0:
+    name: "telegraf"
+    duration: 
+      amount: "7"
+      unit: "d"
