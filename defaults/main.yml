@@ -75,6 +75,16 @@ ansible_influx_queries:
     ,  mean(tcp_fin_wait1) AS tcp_fin_wait1,  mean(tcp_fin_wait2) AS tcp_fin_wait2,  mean(tcp_last_ack) AS tcp_last_ack,  mean(tcp_listen) AS tcp_listen
     ,  mean(tcp_none) AS tcp_none,  mean(tcp_syn_recv) AS tcp_syn_recv,  mean(tcp_syn_sent) AS tcp_syn_sent,  mean(tcp_time_wait) AS tcp_time_wait
     ,  mean(udp_socket) AS udp_socket
+  nstat: >
+    SELECT mean(Ip6InDiscards) AS Ip6InDiscards, mean(Ip6InOctets) AS Ip6InOctets, mean(Ip6InReceives) AS Ip6InReceives
+    , mean(Ip6OutNoRoutes) AS Ip6OutNoRoutes, mean(IpDefaultTTL) AS IpDefaultTTL, mean(IpExtInNoECTPkts) AS IpExtInNoECTPkts
+    , mean(IpExtInOctets) AS IpExtInOctets, mean(IpExtOutOctets) AS IpExtOutOctets, mean(IpForwarding) AS IpForwarding
+    , mean(IpInDelivers) AS IpInDelivers, mean(IpInReceives) AS IpInReceives, mean(IpOutRequests) AS IpOutRequests
+    , mean(TcpActiveOpens) AS TcpActiveOpens, mean(TcpCurrEstab) AS TcpCurrEstab, mean(TcpExtTCPHPAcks) AS TcpExtTCPHPAcks
+    , mean(TcpExtTCPHPHits) AS TcpExtTCPHPHits, mean(TcpExtTCPPureAcks) AS TcpExtTCPPureAcks, mean(TcpExtTW) AS TcpExtTW
+    , mean(TcpInSegs) AS TcpInSegs, mean(TcpMaxConn) AS TcpMaxConn, mean(TcpOutSegs) AS TcpOutSegs
+    , mean(TcpRtoAlgorithm) AS TcpRtoAlgorithm, mean(TcpRtoMax) AS TcpRtoMax, mean(TcpRtoMin) AS TcpRtoMin
+    , mean(UdpInDatagrams) AS UdpInDatagrams, mean(UdpOutDatagrams) AS UdpOutDatagrams
   procstat: >
     SELECT mean(cpu_time_guest) AS cpu_time_guest, mean(cpu_time_guest_nice) AS cpu_time_guest_nice, mean(cpu_time_idle) AS cpu_time_idle
     , mean(cpu_time_iowait) AS cpu_time_iowait, mean(cpu_time_irq) AS cpu_time_irq, mean(cpu_time_nice) AS cpu_time_nice, mean(cpu_time_soft_irq) AS cpu_time_soft_irq

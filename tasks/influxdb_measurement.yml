@@ -27,6 +27,18 @@
   register: ansible_influx_mm_fields
   when: ifx_db.source is defined
 
+- name: "{{msg_prefix}} Get SOURCE measurement count(*)"
+  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SELECT COUNT(*) FROM {{measurement}}" return_content=yes
+  register: ansible_influx_mm_count
+  when: mm_backfill and ifx_db.source is defined and false
+
+- name: "{{msg_prefix}} Cacluate SOURCE measuremant count"
+  set_fact:
+    mm_count: "{{ansible_influx_mm_count.json.results|map(attribute='series')|flatten|map(attribute='values')|flatten|select('number')|map('int')|max}}"
+  when: ansible_influx_mm_count.json is defined
+- debug: msg="Max count on SOURCE {{measurement}} = {{mm_count}}"
+  when: ansible_influx_mm_count.json is defined
+
 # only works global per influxdb instance? --> move to main.yml
 #- name: "{{msg_prefix}} Get continuous queries"
 #  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW CONTINUOUS QUERIES" return_content=yes
@@ -45,7 +57,7 @@
 #- debug: msg="{{item}}"
 #  with_items: "{{ifx_mm_cqs|list}}"
 
-- debug: var=ifx_mm_fields
+- debug: msg="Fields of {{measurement}} - {{ifx_mm_fields|join(', ')}}"
 #- debug: var=ifx_mm_cqs
 
 - name: "{{msg_prefix}} Backfilling measurement"
@@ -64,14 +76,15 @@
   changed_when: ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined and ansible_influx_mm_backfill.json.results[0].statement_id == 0
   failed_when: ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined and ansible_influx_mm_backfill.json.results[0].error is defined
 
-- debug: var=ansible_influx_mm_backfill
-- set_fact:
-    mm_backfill_result: "{{ansible_influx_mm_backfill.results |map(attribute='json') |selectattr('values', 'number') |map(attribute='values') |sum()}}"
-  when: mm_backfill and ansible_influx_mm_backfill is changed
-- debug: msg="Total series written = {{mm_backfill_result}}"
+- name: "{{msg_prefix}} Sum up written data points"
+  set_fact:
+    mm_backfill_result: "{{ansible_influx_mm_backfill.results |map(attribute='json.results')|flatten |map(attribute='series')|flatten |map(attribute='values')|flatten |select('number')|map('int')|sum(start=0)}}"
   when: mm_backfill and ansible_influx_mm_backfill is changed
 
-- debug: msg='q=CREATE CONTINUOUS QUERY "{{ifx_cq_name}}" ON "{{ifx_db.name}}" {{cq_resample}} {{cq_resample_every}} {{cq_resample_for}} BEGIN {{cq_select}} INTO {{target_mm}} FROM {{source_mm}} {{cq_where}} GROUP BY time({{cq_interval}}),* END'
+#- debug: var=ansible_influx_mm_backfill.results|map(attribute='json.results')|flatten
+
+- debug: msg="Total series written = {{mm_backfill_result}}"
+  when: mm_backfill and ansible_influx_mm_backfill is changed
 
 - name: "{{msg_prefix}} Creating continuous query {{ifx_cq_name}}"
   uri:
@@ -86,5 +99,20 @@
   register: ansible_influx_mm_cq
   when: ifx_db.source is defined and ifx_cq_name not in ifx_cqs
 
-- debug: var=ansible_influx_mm_cq
+- name: "{{msg_prefix}} Get TARGET measurement count(*)"
+  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SELECT COUNT(*) FROM {{measurement}}" return_content=yes
+  register: ansible_influx_mm_count
+  when: mm_backfill and ifx_db.source is defined and mm_backfill_result|int > 0
+
+#- debug: var=ansible_influx_mm_count
+#  when: mm_backfill_result|int > 0
+- name: "{{msg_prefix}} Calcuate TARGET measuremant count"
+  set_fact:
+    mm_count: "{{ansible_influx_mm_count.json.results[0].series|default([])|map(attribute='values')|flatten|select('number')|map('int')|max}}"
+    test: "{{ansible_influx_mm_count.json.results[0].series|default([])|map(attribute='values')|flatten}}"
+  when: mm_backfill_result|int > 0
+#- debug: var=test
+#  when: mm_backfill_result|int > 0
+- debug: msg="Max count on TARGET {{measurement}} = {{mm_count}}"
+  when: mm_backfill_result|int > 0
 
