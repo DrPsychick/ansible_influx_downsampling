@@ -3,4 +3,6 @@
 ansible_influx_databases:
   level_0:
     name: "telegraf"
-    rp_name: "autogen"
+    duration: 
+      amount: "7"
+      unit: "d"
