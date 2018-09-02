@@ -15,6 +15,12 @@ As preparation you don't need much, expect knowing how exactly you want to downs
 
 History
 -------
+Version 0.2:
+T full readme
+T multiple examples
+T howto switch retention policy (cleanup after all is setup)
+T more tests
+* support selective group by in backfill and continuous query
 Version 0.1:
 * basic functionality
 * create databases + retention policy
