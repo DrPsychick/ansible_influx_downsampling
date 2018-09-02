@@ -7,21 +7,12 @@
   failed_when: ansible_influx_dbs.status != 200 or (ansible_influx_dbs.rc is defined and ansible_influx_dbs.rc == 1)
     or (ansible_influx_dbs.json is defined and ansible_influx_dbs.json.results[0].error is defined)
 
-#- debug: var=ansible_influx_dbs
-
 - name: Set facts
   set_fact:
-    ifx_dbs: "{{ansible_influx_dbs.json.results[0].series[0]['values']|flatten|default([])}}"
-# if ansible_influx_dbs.json.results[0].series[0].values is defined else default([])}}"
+    ifx_dbs: "{{ansible_influx_dbs.json.results[0].series|map(attribute='values')|flatten|default([])}}"
     ansible_influx_queries: "{{ansible_influx_queries|combine(my_ansible_influx_queries|default({}))}}"
 
-- name: Setup databases
-  include_tasks: influxdb_database.yml database={{db_item}}
-  with_items: "{{ansible_influx_databases|sort}}"
-  loop_control: { loop_var: db_item }
-#  when: false
-
-# AFTER setup:
+# needed to check if RP needs to be created
 - name: Show continuous queries
   uri: url="{{ansible_influx_url}}/query" method=POST body="q=SHOW CONTINUOUS QUERIES" return_content=yes
   register: ansible_influx_cqs
@@ -29,13 +20,15 @@
   failed_when: (ansible_influx_cqs.rc is defined and ansible_influx_cqs.rc == 1)
     or (ansible_influx_cqs.json is defined and ansible_influx_cqs.json.results[0].error is defined)
 
-#- shell:
-# TODO 
-- debug: var=ansible_influx_cqs
+#- debug: var=ansible_influx_cqs
 - set_fact:
-    ifx_cqs: "{{ansible_influx_cqs.json.results[0].series|select('match', 'values')|flatten|default([])}}"
-# if ansible_influx_cqs.json.results[0].series[0].values is defined else default([])}}"
-#  when: ansible_influx_cqs.json.results[0].series[0]|search('match', 'values') is defined
+    ifx_cqs: "{{ansible_influx_cqs.json.results[0].series |rejectattr('values', 'callable') |map(attribute='values') |flatten |select('match', '^CREATE') |list if ansible_influx_cqs.json.results[0].series is defined else default([])}}"
 
-- debug: var=ifx_cqs
+#- debug: var=ifx_cqs
+
+- name: Setup databases
+  include_tasks: influxdb_database.yml database={{db_item}}
+  with_items: "{{ansible_influx_databases|sort}}"
+  loop_control: { loop_var: db_item }
+
 

@@ -17,8 +17,6 @@
     ifx_source: "{{'\"foo\"' if ifx_db.source is defined else false}}"
     ifx_backfill: "{{ifx_db.backfill|default(false)}}"
 
-- debug: var=ifx_db
-
 - name: "{{msg_prefix}} Create database"
   uri: url="{{ansible_influx_url}}/query" method=POST body="q=CREATE DATABASE {{ifx_db.name}}" return_content=yes
   when: ifx_db.name not in ifx_dbs
@@ -34,11 +32,10 @@
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW MEASUREMENTS" return_content=yes
   register: ansible_influx_mms
 
-- debug: var=ansible_influx_mms
 - name: "{{msg_prefix}} List of retention policies and measurements"
   set_fact:
     ifx_rps: "{{ansible_influx_rps.json.results[0].series[0]['values']|flatten if ansible_influx_db_create is not changed else []}}"
-    ifx_mms: "{{ansible_influx_mms.json.results[0].series[0]['values']|flatten if ansible_influx_mms.json.results[0].series is defined else []}}"
+    ifx_mms: "{{ansible_influx_mms.json.results[0].series|rejectattr('values', 'callable')|map(attribute='values')|flatten|default([])}}"
 
 - name: "{{msg_prefix}} Create retention policy {{ifx_db.rp_name}}"
   uri:

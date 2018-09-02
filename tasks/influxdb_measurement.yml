@@ -28,25 +28,25 @@
   when: ifx_db.source is defined
 
 # only works global per influxdb instance? --> move to main.yml
-- name: "{{msg_prefix}} Get continuous queries"
-  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW CONTINUOUS QUERIES" return_content=yes
-  register: ansible_influx_mm_cqs
+#- name: "{{msg_prefix}} Get continuous queries"
+#  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW CONTINUOUS QUERIES" return_content=yes
+#  register: ansible_influx_mm_cqs
 
-- debug: var=ansible_influx_mm_fields
-- debug: var=ansible_influx_mm_cqs
+#- debug: var=ansible_influx_mm_fields
+#- debug: var=ansible_influx_mm_cqs
 
-# TODO
-- set_fact:
-    ifx_mm_fields: "{{ansible_influx_mm_fields.json.results[0].series[0]['values']|select('match', 'integer') if ansible_influx_mm_fields.json.results[0].series[0] is defined else []}}"
-    ifx_mm_cqs: "{{ansible_influx_mm_cqs.json.results[0].series[0]['values']|select('match', '^SELECT.*') if ansible_influx_mm_cqs.json.results[0].series[0]['values'] is defined else []}}"
+- name: "{{msg_prefix}} Set variables"
+  set_fact:
+    ifx_mm_fields: "{{ansible_influx_mm_fields.json.results[0].series|rejectattr('values', 'callable') |map(attribute='values') |flatten |select('match', '^(?!integer|float).*$')|list|default([])}}"
+#if ansible_influx_mm_fields.json.results[0].series[0] is defined else []}}"
+    #ifx_mm_cqs: "{{ansible_influx_mm_cqs.json.results[0].series|rejectattr('values', 'callable') |map(attribute='values') |flatten |select('match', '^CREATE.*') |list|default([])}}"
+#if ansible_influx_mm_cqs.json.results[0].series[0]['values'] is defined else []}}"
 
-- debug: msg="{{item}}"
-  with_items: "{{ifx_mm_cqs|list}}"
+#- debug: msg="{{item}}"
+#  with_items: "{{ifx_mm_cqs|list}}"
 
 - debug: var=ifx_mm_fields
-- debug: var=ifx_mm_cqs
-
-#- shell:
+#- debug: var=ifx_mm_cqs
 
 - name: "{{msg_prefix}} Backfilling measurement"
   uri:
@@ -66,7 +66,7 @@
 
 - debug: var=ansible_influx_mm_backfill
 - set_fact:
-    mm_backfill_result: "{{ansible_influx_mm_backfill.results.json.results[0].series[0]['values']|select('match', '^[0-9]*$')|sum()}}"
+    mm_backfill_result: "{{ansible_influx_mm_backfill.results |map(attribute='json') |selectattr('values', 'number') |map(attribute='values') |sum()}}"
   when: mm_backfill and ansible_influx_mm_backfill is changed
 - debug: msg="Total series written = {{mm_backfill_result}}"
   when: mm_backfill and ansible_influx_mm_backfill is changed
@@ -84,7 +84,7 @@
       GROUP BY time({{cq_interval}}),* END
     return_content: yes
   register: ansible_influx_mm_cq
-  when: ifx_db.source is defined and ifx_cq_name not in ifx_mm_cqs
+  when: ifx_db.source is defined and ifx_cq_name not in ifx_cqs
 
 - debug: var=ansible_influx_mm_cq
 
