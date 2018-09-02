@@ -36,7 +36,8 @@
   set_fact:
     mm_count: "{{ansible_influx_mm_count.json.results|map(attribute='series')|flatten|map(attribute='values')|flatten|select('number')|map('int')|max}}"
   when: ansible_influx_mm_count.json is defined
-- debug: msg="Max count on SOURCE {{measurement}} = {{mm_count}}"
+- name: "{{msg_prefix}} Count on SOURCE"
+  debug: msg="Max count on SOURCE {{measurement}} = {{mm_count}}"
   when: ansible_influx_mm_count.json is defined
 
 # only works global per influxdb instance? --> move to main.yml
@@ -57,7 +58,8 @@
 #- debug: msg="{{item}}"
 #  with_items: "{{ifx_mm_cqs|list}}"
 
-- debug: msg="Fields of {{measurement}} - {{ifx_mm_fields|join(', ')}}"
+- name: "{{msg_prefix}} List fields"
+  debug: msg="Fields of {{measurement}} - {{ifx_mm_fields|join(',')}}"
 #- debug: var=ifx_mm_cqs
 
 - name: "{{msg_prefix}} Backfilling measurement"
@@ -76,6 +78,9 @@
   changed_when: ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined and ansible_influx_mm_backfill.json.results[0].statement_id == 0
   failed_when: ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined and ansible_influx_mm_backfill.json.results[0].error is defined
 
+- debug: var=ansible_influx_mm_backfill
+  when: ansible_influx_mm_backfill is succeeded and ansible_influx_mm_backfill is not changed
+
 - name: "{{msg_prefix}} Sum up written data points"
   set_fact:
     mm_backfill_result: "{{ansible_influx_mm_backfill.results |map(attribute='json.results')|flatten |map(attribute='series')|flatten |map(attribute='values')|flatten |select('number')|map('int')|sum(start=0)}}"
@@ -83,7 +88,8 @@
 
 #- debug: var=ansible_influx_mm_backfill.results|map(attribute='json.results')|flatten
 
-- debug: msg="Total series written = {{mm_backfill_result}}"
+- name: "{{msg_prefix}} Backfill results"
+  debug: msg="Total series written = {{mm_backfill_result}}"
   when: mm_backfill and ansible_influx_mm_backfill is changed
 
 - name: "{{msg_prefix}} Creating continuous query {{ifx_cq_name}}"
@@ -113,6 +119,7 @@
   when: mm_backfill_result|int > 0
 #- debug: var=test
 #  when: mm_backfill_result|int > 0
-- debug: msg="Max count on TARGET {{measurement}} = {{mm_count}}"
+- name: "{{msg_prefix}} Count on TARGET"
+  debug: msg="Max count on TARGET {{measurement}} = {{mm_count}}"
   when: mm_backfill_result|int > 0
 

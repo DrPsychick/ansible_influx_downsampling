@@ -33,7 +33,8 @@ script:
     || (echo 'Idempotence test: fail' && exit 1)
 
 after_script:
-  - curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW MEASUREMENTS"
+  - curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW DATABASES"
+  - curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW RETENTION POLICIES"
 
 notifications:
   webhooks: https://galaxy.ansible.com/api/v1/notifications/
