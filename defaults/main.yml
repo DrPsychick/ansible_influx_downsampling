@@ -1,5 +1,6 @@
 
 ansible_influx_url: "http://localhost:8086"
+ansible_influx_timeout: 120
 
 # docker run --rm -it --name influxdb-test -p 8086:8086 docker-influxdb:latest
 ansible_influx_databases:
