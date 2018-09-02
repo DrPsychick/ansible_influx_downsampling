@@ -10,6 +10,7 @@
     ifx_db: "{{ifx_db|combine({ 'rp_name': 'rp_'+ifx_db.duration.amount+ifx_db.duration.unit if ifx_db.rp_name is not defined else ifx_db.rp_name })}}"
     ifx_bf_where: "{{'AND '+ifx_db.cq_where if ifx_db.cq_where is defined else ''}}"
     ifx_cq_where: "{{'WHERE '+ifx_db.cq_where if ifx_db.cq_where is defined else ''}}"
+    ifx_cq_groupby: "{{ifx_db.cq_groupby if ifx_db.cq_groupby is defined else ['*']}}"
     ifx_cq_interval: "{{ifx_db.cq_interval|default('')}}"
     ifx_cq_resample: "{{'RESAMPLE ' if ifx_db.cq_resample is defined else ''}}"
     ifx_cq_resample_every: "{{'EVERY '+ifx_db.cq_resample.every if ifx_db.cq_resample is defined and ifx_db.cq_resample.every is defined else ''}}"
