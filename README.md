@@ -24,6 +24,7 @@ T * Case: copy from "autogen", no CQ, drop source after backfill + set default R
 
 Version 0.2:
 W Check variables upfront (define clear dependencies) and print useful error messages before acting
+B fix: continuous_query is required even if empty (bad usability)
 T full readme -> docs
 T multiple examples -> docs/example
 T more tests: 

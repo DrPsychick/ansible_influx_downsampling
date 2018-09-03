@@ -3,6 +3,8 @@
 ansible_influx_databases:
   level_0:
     name: "telegraf"
-    duration: 
+    retention_policy: 
       amount: "7"
       unit: "d"
+    continuous_query:
+
