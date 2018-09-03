@@ -13,8 +13,10 @@ env:
 
 before_install:
   # Make sure everything's up to date.
-  - [ "$TEST" = "basic" ] && "sudo apt-get update -qq"
-  - [ "$TEST" = "basic" ] && "docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine"
+  - >
+    [ "$TEST" = "basic" ] && "sudo apt-get update -qq"
+  - >
+    [ "$TEST" = "basic" ] && "docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine"
 
 install:
   # Install Ansible.
@@ -35,10 +37,10 @@ script:
   # Run the role/playbook again, checking to make sure it's idempotent.
   - >
     [ "$TEST" = "basic" ] && { 
-      ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo
-      | grep -q 'changed=0.*failed=0'
-      && (echo 'Idempotence test: pass' && exit 0)
-      || (echo 'Idempotence test: fail' && exit 1) 
+    ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo
+    | grep -q 'changed=0.*failed=0'
+    && (echo 'Idempotence test: pass' && exit 0)
+    || (echo 'Idempotence test: fail' && exit 1) 
     }
 
   # TEST = migration
