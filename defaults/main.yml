@@ -2,6 +2,9 @@
 ansible_influx_url: "http://localhost:8086"
 ansible_influx_timeout: 120
 
+# Force recreate continuous queries
+# recreate_cqs=yes
+
 # docker run --rm -it --name influxdb-test -p 8086:8086 docker-influxdb:latest
 # you need to overwrite this:
 # TODO: set sane defaults
