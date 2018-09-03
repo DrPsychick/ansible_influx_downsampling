@@ -26,19 +26,23 @@ install:
 script:
   # TEST = basic
   # Check the role/playbook's syntax.
-  - [ "$TEST" == "basic" ] && "ansible-playbook -i tests/inventory tests/test.yml --syntax-check"
+  - >
+    [ "$TEST" == "basic" ] && "ansible-playbook -i tests/inventory tests/test.yml --syntax-check"
   # Run the role/playbook with ansible-playbook.
-  - [ "$TEST" == "basic" ] && "ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo"
+  - >
+    [ "$TEST" == "basic" ] && "ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo"
 
   # Run the role/playbook again, checking to make sure it's idempotent.
-  - [ "$TEST" == "basic" ] && >
+  - >
+    [ "$TEST" == "basic" ] && 
     { ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo
     | grep -q 'changed=0.*failed=0'
     && (echo 'Idempotence test: pass' && exit 0)
     || (echo 'Idempotence test: fail' && exit 1) }
 
   # TEST = migration
-  - [ "$TEST" == "migration" ] && "echo 'success'"
+  - >
+    [ "$TEST" == "migration" ] && "echo 'success'"
 
 after_script:
   - curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW DATABASES"
