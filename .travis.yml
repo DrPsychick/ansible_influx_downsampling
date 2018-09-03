@@ -13,14 +13,8 @@ env:
 
 before_install:
   # Make sure everything's up to date.
-  - >
-    if [ "$TEST" = "basic" ]; then 
-      sudo apt-get update -qq
-    fi
-  - >
-    if [ "$TEST" = "basic" ]; then 
-      docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
-    fi
+  - if [ "$TEST" = "basic" ]; then sudo apt-get update -qq; fi
+  - if [ "$TEST" = "basic" ]; then docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine; fi
 
 install:
   # Install Ansible.
