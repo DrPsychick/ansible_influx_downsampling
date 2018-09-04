@@ -5,6 +5,7 @@
     ifx_mm: "{{ifx_db.measurements[measurement]}}"
     ifx_cq_name: "cq_{{measurement}}_{{ifx_cq_interval}}"
     ifx_mm_name: '"{{measurement}}"'
+    cq_counter: "{{cq_counter|default(-1)|int + 1}}" # 0, 1, 2, 3, 4, ...
 
 - name: '{{ifx_db.name}}/{{measurement}} - Set defaults'
   set_fact:
@@ -22,6 +23,11 @@
     mm_count_source: 0
     mm_backfill: "{{ifx_mm.backfill if ifx_mm.backfill is defined else ifx_backfill}}"
     mm_backfill_result: 0
+    cq_resample_jitter: "{{cq_resample_jitter|default(0)|int + cq_counter|int if not cq_counter|int is divisibleby 2 else cq_resample_jitter|default(0)|int - cq_counter|int}}" # 0 +1 -1 +2 -2 +3 -3 ... (0 +1 -2 +3 -4 +5 ...)
+    cq_resample_base: "{{ifx_mm.every|default(ifx_cq_resample_every)|regex_replace('EVERY ([0-9]*)[smdw]','\\1')|int if ifx_mm.every is defined or ifx_cq_resample_every is defined else 0}}"
+
+#- debug: msg="base {{ifx_mm.every|default(ifx_cq_resample_every)|regex_replace('EVERY ([0-9]*)[smdw]','\\1')}}"
+#- debug: msg="base({{cq_counter}}) {{cq_resample_every}}{{cq_resample_jitter}}s"
 
 - name: '{{mm_prefix}} Get fields from source'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SHOW FIELD KEYS FROM {{measurement}}" return_content=yes

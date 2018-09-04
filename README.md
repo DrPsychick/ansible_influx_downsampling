@@ -15,14 +15,18 @@ As preparation you don't need much, expect knowing how exactly you want to downs
 
 History
 -------
+
 Version 0.3:
+
 T more tests:
 T * run backfill without CQ to switch RP on existing data
 T * run backfill without CQ during operation (configurable timing of input)
 T howto switch retention policy (cleanup after all is setup)
 T * Case: copy from "autogen", no CQ, drop source after backfill + set default RP -> see test
+T shift RPs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds
 
 Version 0.2:
+
 W Check variables upfront (define clear dependencies) and print useful error messages before acting
 B fix: continuous_query is required even if empty (bad usability)
 T full readme -> docs
@@ -38,7 +42,9 @@ T * run backfill with step 7 (on RP with 7d)
 * update continuous queries (drop+create)
 * stats (total data points written per DB / average downsampling ratio)
 * support selective group by in backfill and continuous query
+
 Version 0.1:
+
 * basic functionality
 * create databases + retention policy
 * backfill measurements
