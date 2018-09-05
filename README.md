@@ -28,11 +28,11 @@ T shift RPs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seco
 Version 0.2:
 
 W Check variables upfront (define clear dependencies) and print useful error messages before acting
-B fix: continuous_query is required even if empty (bad usability)
+* fix: continuous_query is required even if empty (bad usability)
 T full readme -> docs
 T multiple examples -> docs/example
-T more tests: 
-T * test parallel tests
+W more tests: 
+* test parallel tests
 T * prepare seeding (generator or file?)
 T * run downsampling + backfill on existing DB (needs seed)
 T * run downsampling + backfill + switch RP on existing DB (needs seed)

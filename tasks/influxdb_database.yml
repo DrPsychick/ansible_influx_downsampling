@@ -2,28 +2,34 @@
 
 - name: '{{ansible_influx_databases[database].name}} - Set database variable'
   set_fact:
-    ifx_db: "{{ansible_influx_databases[database]}}"
+    ifx_db: "{{ansible_influx_databases[database]|combine({ 'continuous_query': {} } if ansible_influx_databases[database].continuous_query is not defined else ansible_influx_databases[database].continuous_query )}}"
+
+- debug: var=ifx_db
 
 # some assertions - move to separate file?
 - name: "Assert basic DB attributes"
   fail:
-    msg: "DB attributes 'name' and 'continuous_query' must be defined!"
-  when: ifx_db.name is not defined or ifx_db.continuous_query is not defined
-
-- name: "Assert 'interval' must be defined when 'measurements' are defined"
-  fail:
-    msg: "DB attribute 'continuous_query.interval' must be defined when defining 'measurements'!"
-  when: ifx_db.measurements is defined and ifx_db.continuous_query.interval is not defined
+    msg: "DB attributes 'name' must be defined!"
+  when: ifx_db.name is not defined 
 
 - name: "Assert either 'rp_name' or 'retention_policy' are defined"
   fail:
     msg: "DB attribute 'rp_name' OR 'retention_policy' must be defined!"
   when: ifx_db.rp_name is not defined and ifx_db.retention_policy is not defined
 
+- name: "Assert 'interval' must be defined when 'measurements' are defined"
+  fail:
+    msg: "DB attribute 'continuous_query.interval' OR 'backfill.interval' must be defined when defining 'measurements'!"
+  when: ifx_db.measurements is defined and (
+    ifx_db.continuous_query.interval is not defined
+    and ifx_db.backfill.interval is not defined)
+
 - name: "Assert backfill settings 'step' and 'source'"
   fail:
-    msg: "DB attribute 'backfill.step' requires 'source'!"
-  when: ifx_db.backfill is defined and ifx_db.backfill.step is defined and ifx_db.source is not defined
+    msg: "DB attribute 'backfill.step' and 'backfill.interval' require 'source'!"
+  when: ifx_db.backfill is defined and (
+    ifx_db.backfill.step is defined or ifx_db.backfill.interval is defined 
+    ) and ifx_db.source is not defined
 
 - name: "Assert backfill RP dependency"
   fail:
@@ -40,7 +46,11 @@
     ifx_bf_where: "{{'AND '+ifx_db.continuous_query.where if ifx_db.continuous_query.where is defined else ''}}"
     ifx_cq_where: "{{'WHERE '+ifx_db.continuous_query.where if ifx_db.continuous_query.where is defined else ''}}"
     ifx_cq_groupby: "{{ifx_db.continuous_query.groupby if ifx_db.continuous_query.groupby is defined else ['*']}}"
-    ifx_cq_interval: "{{ifx_db.continuous_query.interval|default('')}}"
+    # ifx_cq_interval: "{{ifx_db.continuous_query.interval}}"
+    ifx_cq_interval: "{{ifx_db.continuous_query.interval 
+      if ifx_db.continuous_query is defined and ifx_db.continuous_query.interval is defined else 
+        ifx_db.backfill.interval if ifx_db.backfill is defined and ifx_db.backfill.interval is defined else ''
+      }}"
     ifx_cq_resample: "{{'RESAMPLE ' if ifx_db.continuous_query.resample is defined else ''}}"
     ifx_cq_resample_every: "{{'EVERY '+ifx_db.continuous_query.resample.every if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.every is defined else ''}}"
     ifx_cq_resample_for: "{{'FOR '+ifx_db.continuous_query.resample.for if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.for is defined else ''}}"

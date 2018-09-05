@@ -3,7 +3,7 @@
 - name: '{{ifx_db.name}}/{{measurement}} - Set measurement variable'
   set_fact:
     ifx_mm: "{{ifx_db.measurements[measurement]}}"
-    ifx_cq_name: "cq_{{measurement}}_{{ifx_cq_interval}}"
+    ifx_cq_name: "cq_{{measurement}}_{{'all' if ifx_cq_interval == '*' else ifx_cq_interval}}"
     ifx_mm_name: '"{{measurement}}"'
     cq_counter: "{{cq_counter|default(-1)|int + 1}}" # 0, 1, 2, 3, 4, ...
 
