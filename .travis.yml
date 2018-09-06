@@ -24,7 +24,7 @@ install:
   - printf "[defaults]\nroles_path = ../" > ansible.cfg
 
   # Seed influxdb
-  - if [ "$TEST" = "migration" ]; then ./tests/seed.sh 1m 10s seq+step10
+  - if [ "$TEST" = "migration" ]; then ./tests/seed.sh 1m 10s seq+step10; fi
 
 script:
   # TEST = basic
