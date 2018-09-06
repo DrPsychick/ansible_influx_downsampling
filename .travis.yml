@@ -13,8 +13,8 @@ env:
 
 before_install:
   # Make sure everything's up to date.
-  - if [ "$TEST" = "basic" ]; then sudo apt-get update -qq; fi
-  - if [ "$TEST" = "basic" ]; then docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine; fi
+  - sudo apt-get update -qq
+  - docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
 
 install:
   # Install Ansible.
@@ -22,6 +22,9 @@ install:
 
   # Add ansible.cfg to pick up roles path.
   - printf "[defaults]\nroles_path = ../" > ansible.cfg
+
+  # Seed influxdb
+  - if [ "$TEST" = "migration" ]; then ./tests/seed.sh 1m 10s seq+step10
 
 script:
   # TEST = basic
@@ -43,11 +46,19 @@ script:
 
   # TEST = migration
   - >
-    if [ "$TEST" = "migration" ]; then echo 'success'; fi
+    if [ "$TEST" = "migration" ]; then curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT * FROM test.autogen.test"; fi
 
 after_script:
-  - curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW DATABASES"
-  - curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW RETENTION POLICIES"
+  - >
+    if [ "$TEST" = "basic" ]; then
+    curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW DATABASES"
+    curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW RETENTION POLICIES"
+    fi
+  - >
+    if [ "$TEST" = "migration" ]; then
+    curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT * FROM test.autogen.test"
+    curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test"
+    fi
 
 notifications:
   webhooks: https://galaxy.ansible.com/api/v1/notifications/
