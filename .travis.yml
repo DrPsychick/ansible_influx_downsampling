@@ -27,26 +27,22 @@ install:
   - if [ "$TEST" = "migration" ]; then ./tests/seed.sh 1m 10s seq+step10; fi
 
 script:
-  # TEST = basic
   # Check the role/playbook's syntax.
-  - >
-    if [ "$TEST" = "basic" ]; then ansible-playbook -i tests/inventory tests/test.yml --syntax-check; fi
+  - ansible-playbook -i tests/inventory tests/test.yml --syntax-check
   # Run the role/playbook with ansible-playbook.
-  - >
-    if [ "$TEST" = "basic" ]; then ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo; fi
+  - ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo
 
   # Run the role/playbook again, checking to make sure it's idempotent.
   - >
-    if [ "$TEST" = "basic" ]; then 
     ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo 
     | grep -q 'changed=0.*failed=0'
     && (echo 'Idempotence test: pass' && exit 0)
     || (echo 'Idempotence test: fail' && exit 1);
-    fi 
 
   # TEST = migration
   - >
     if [ "$TEST" = "migration" ]; then 
+    curl http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT * FROM test";
     result=$(curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test" | jq .results[0].series[0].values[0][1]); 
     [ "$result" -ne 35 ] && (exit 1);
     fi

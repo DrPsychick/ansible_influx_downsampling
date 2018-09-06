@@ -14,3 +14,4 @@ ansible_influx_databases:
       resample: { every: "10s", for: "1m" }
     backfill:
       stats: true
+    measurements: { test }
