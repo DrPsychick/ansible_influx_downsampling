@@ -51,13 +51,13 @@ script:
 after_script:
   - >
     if [ "$TEST" = "basic" ]; then
-    curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW DATABASES"
-    curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW RETENTION POLICIES"
+    curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW DATABASES";
+    curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW RETENTION POLICIES";
     fi
   - >
     if [ "$TEST" = "migration" ]; then
-    curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT * FROM test.autogen.test"
-    curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test"
+    curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT * FROM test.autogen.test";
+    curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test";
     fi
 
 notifications:
