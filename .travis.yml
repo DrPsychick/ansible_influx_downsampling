@@ -17,12 +17,9 @@ before_install:
   - docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
 
 install:
-  # Install Ansible.
-  - "pip install ansible"
+  # Install ansible and jq.
+  - "pip install ansible jq"
   
-  # Install jq
-  - apt-get install jq
-
   # Add ansible.cfg to pick up roles path.
   - printf "[defaults]\nroles_path = ../" > ansible.cfg
 
@@ -51,8 +48,8 @@ script:
   - >
     if [ "$TEST" = "migration" ]; then 
     result=$(curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test" | jq .results[0].series[0].values[0][1]); 
+    [ "$result" -ne 35 ] && (exit 1);
     fi
-    [ "$result" -ne 35 ] && (exit 1)
 
 after_script:
   - >
