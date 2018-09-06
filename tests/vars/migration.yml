@@ -15,3 +15,6 @@ ansible_influx_databases:
     backfill:
       stats: true
     measurements: { test }
+
+my_ansible_influx_queries:
+  test: SELECT MEAN(value)

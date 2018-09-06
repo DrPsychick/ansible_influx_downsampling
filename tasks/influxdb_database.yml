@@ -71,8 +71,8 @@
 
 - name: '{{db_prefix}} Get retention policies'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW RETENTION POLICIES" return_content=yes
-  when: ansible_influx_db_create is not changed
   register: ansible_influx_rps
+  when: ansible_influx_db_create is not changed
 
 - name: '{{db_prefix}} Get SOURCE measurements'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SHOW MEASUREMENTS" return_content=yes
@@ -82,12 +82,13 @@
 - name: '{{db_prefix}} Get TARGET measurements'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW MEASUREMENTS" return_content=yes
   register: ansible_influx_mms
+  when: ansible_influx_db_create is not changed
 
 - name: '{{db_prefix}} List of retention policies and measurements'
   set_fact:
     ifx_rps: "{{ansible_influx_rps.json.results[0].series[0]['values']|flatten if ansible_influx_db_create is not changed else []}}"
-    ifx_mms: "{{ansible_influx_mms.json.results[0].series|default([])|rejectattr('values', 'callable')|map(attribute='values')|flatten}}"
-    ifx_source_mms: "{{ansible_influx_source_mms.json.results[0].series|rejectattr('values', 'callable')|map(attribute='values')|flatten if ansible_influx_source_mms.json is defined else []}}"
+    ifx_mms: "{{ansible_influx_mms.json.results[0].series|default([])|rejectattr('values', 'callable')|map(attribute='values')|flatten if ansible_influx_mms is not skipped and ansible_influx_mms.json.results[0].series is defined else []}}"
+    ifx_source_mms: "{{ansible_influx_source_mms.json.results[0].series|rejectattr('values', 'callable')|map(attribute='values')|flatten if ansible_influx_source_mms is not skipped and ansible_influx_source_mms.json.results[0].series is defined else []}}"
 
 - name: '{{db_prefix}} Print list of measurements'
   debug: msg="List of measurements on SOURCE = {{ifx_source_mms|join(', ')}}"

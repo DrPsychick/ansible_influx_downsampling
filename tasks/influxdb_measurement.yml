@@ -69,10 +69,10 @@
     body: >
       q={{cq_select}} INTO {{target_mm}} FROM {{source_mm}}
       WHERE time >= now() - {{seq}}{{ifx_db.retention_policy.unit}} 
-      AND time < now() - {{seq|int - ifx_db.backfill.step|int}}{{ifx_db.retention_policy.unit}}
+      AND time < now() - {{seq|int - ifx_db.backfill.step|default(1)|int}}{{ifx_db.retention_policy.unit}}
       {{bf_where}} GROUP BY time({{cq_interval}}),{{cq_groupby|join(',')}}
     return_content: yes
-  with_sequence: start={{ifx_db.retention_policy.amount|int}} end={{ifx_db.backfill.step|int}} stride=-{{ifx_db.backfill.step|int}}
+  with_sequence: start={{ifx_db.retention_policy.amount|int}} end={{ifx_db.backfill.step|default(1)|int}} stride=-{{ifx_db.backfill.step|default(1)|int}}
   loop_control: { loop_var: seq }
   when: mm_backfill and measurement not in ifx_mms and ifx_db.source is defined
     and (
@@ -120,26 +120,26 @@
   when: ifx_db.source is defined
 
 - name: '{{mm_prefix}} Get TARGET measurement count(*)'
-  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SELECT COUNT(*) FROM {{measurement}}" return_content=yes
+  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SELECT COUNT(*) FROM {{ifx_db.name}}.{{ifx_db.rp_name}}.{{measurement}}" return_content=yes
   register: ansible_influx_mm_count
   when: mm_backfill and ifx_db.source is defined and mm_backfill_result|int > 0
 
 - name: '{{mm_prefix}} Calcuate TARGET measurement count'
   set_fact:
-    mm_count: "{{ansible_influx_mm_count.json.results[0].series|default([])|map(attribute='values')|flatten|select('number')|map('int')|max}}"
-  when: mm_backfill_result|int > 0
+    mm_count: "{{ansible_influx_mm_count.json.results[0].series|map(attribute='values')|flatten|select('number')|map('int')|max}}"
+  when: ansible_influx_mm_count is defined and ansible_influx_mm_count.json.results[0].series is defined
 
 - name: '{{mm_prefix}} Count on TARGET'
   debug: msg="Max count on TARGET {{measurement}} = {{mm_count}}"
-  when: mm_backfill_result|int > 0
+  when: mm_count is defined
 
 - name: '{{mm_prefix}} Series downsampling'
   debug: msg="{{mm_count}}/{{mm_count_source}} = {{(mm_count|int/mm_count_source|int*100)|round(2)}} %"
-  when: mm_backfill_result|int > 0 and ifx_backfill_stats
+  when: mm_count is defined and ifx_backfill_stats
 
 - name: '{{mm_prefix}} Collect stats'
   set_fact:
     mm_backfill_totals: "{{mm_backfill_totals|union([ mm_backfill_result ])}}"
     mm_downsampling_totals: "{{mm_downsampling_totals|union([ mm_count|int/mm_count_source|int*100 ]) if ifx_backfill_stats else mm_downsampling_totals}}"
-  when: mm_backfill_result|int > 0
+  when: ifx_backfill_stats and mm_count is defined and mm_count_source is defined
 
