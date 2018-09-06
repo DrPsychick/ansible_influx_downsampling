@@ -1,0 +1,16 @@
+---
+
+ansible_influx_databases:
+  level_0:
+    name: "test_agg"
+    retention_policy: 
+      amount: "7"
+      unit: "d"
+    source:
+      name: "test"
+      rp_name: "autogen"
+    continuous_query:
+      interval: "1m"
+      resample: { every: "10s", for: "1m" }
+    backfill:
+      stats: true

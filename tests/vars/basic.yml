@@ -6,5 +6,4 @@ ansible_influx_databases:
     retention_policy: 
       amount: "7"
       unit: "d"
-    continuous_query:
 
