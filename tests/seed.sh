@@ -67,7 +67,7 @@ for i in $(seq 1 $((tr_sec/ivl_sec))); do
 
   echo "interval = $i, value = $v"
 
-  curl -s -X POST "$influxdb/write?db=$database" --data-binary "test,value=$v ${ts}000000000"
+  curl -s -X POST "$influxdb/write?db=$database" --data-binary "test value=$v ${ts}000000000"
   i=$((i++))
 done
 
