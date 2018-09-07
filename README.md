@@ -4,6 +4,7 @@ Configure influxDB for downsampling
 ===================================
 
 Motivation:
+-----------
 InfluxDB uses a default retention policy that keeps data **forever** in 7 day shards - in RAW format (data points every 10 or 30 seconds, depending on your input configuration).
 Of course this is a good default, but once you have old data and want to introduce downsampling without loosing data, its a **lot** of manual work to setup all the queries etc.
 
@@ -24,7 +25,7 @@ Setup
 
 Easiest setup is create a role in your own repository and adding this:
 * Decide on the name of the setup, let's call the role "" and the setup"frank"
-* *hint* you can have any number of setup configured in this role. You just always have to load first **your** role (defining the setup) and then **DrPsychick.ansible-influx-downsampling** for each setup.
+* *hint* you can have any number of setup configured in this role. You just always have to load first **your** role (defining the setup) and then **DrPsychick.ansible_influx_downsampling** for each setup.
 
 `tasks/main.yml`
 ```---
@@ -43,7 +44,7 @@ Now in your playbook, include both roles:
   hosts: localhost
   roles: 
     - { role: , vars_name: "frank" }
-    - { role: DrPsychick.ansible-influxdb-downsampling}
+    - { role: DrPsychick.ansible_influxdb_downsampling}
 ```
 
 
@@ -69,23 +70,24 @@ Version 0.3:
 * [ ] full readme -> docs
 * [ ] multiple examples -> docs/example
 * [ ] more tests:
-* [ ] * run backfill without CQ and switch RP on existing data (compact/evict old data)
-* [ ] * run backfill without CQ during operation (configurable timing of input) and switch RP
+   * [ ] run backfill without CQ and switch RP on existing data (compact/evict old data)
+   * [ ] run backfill without CQ during operation (configurable timing of input) and switch RP
 * [ ] howto switch retention policy (cleanup after all is setup)
-* [ ] * Case: copy from "autogen", no CQ, drop source after backfill + set default RP -> see test
+   * [ ] Case: copy from "autogen", no CQ, drop source after backfill + set default RP -> see test
 * [ ] shift RPs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds
 * [ ] add RP shard duration option
+* [ ] refactor/cleanup variables
 
 Version 0.2:
 
-* [ ] Update description + basic readme
-* [ ] Check variables upfront (define clear dependencies) and print useful error messages before acting
+* [x] Update description + basic readme
+* [x] Check variables upfront (define clear dependencies) and print useful error messages before acting
 * [x] fix: continuous_query is required even if empty (bad usability)
 * [ ] more tests: 
-** [x] test parallel tests
-** [x]prepare seeding (generator or file?)
-** [x] run downsampling + backfill on existing DB (needs seed)
-** [ ] run backfill with step X (on RP with 7d)
+   * [x] test parallel tests
+   * [x]prepare seeding (generator or file?)
+   * [x] run downsampling + backfill on existing DB (needs seed)
+   * [ ] run backfill with step X (on RP with 7d)
 * [x] set RP default yes/no
 * [x] improve/extend dict structure (BC break!)
 * [x] update continuous queries (drop+create)
