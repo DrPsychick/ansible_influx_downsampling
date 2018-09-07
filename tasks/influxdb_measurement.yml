@@ -4,7 +4,6 @@
   set_fact:
     ifx_mm: "{{ifx_db.measurements[measurement]}}"
     ifx_cq_name: "cq_{{measurement}}_{{'all' if ifx_cq_interval == '*' else ifx_cq_interval}}"
-    ifx_mm_name: '"{{measurement}}"'
     cq_counter: "{{cq_counter|default(-1)|int + 1}}" # 0, 1, 2, 3, 4, ...
 
 - name: '{{ifx_db.name}}/{{measurement}} - Set defaults'
@@ -29,8 +28,8 @@
 #- debug: msg="base {{ifx_mm.every|default(ifx_cq_resample_every)|regex_replace('EVERY ([0-9]*)[smdw]','\\1')}}"
 #- debug: msg="base({{cq_counter}}) {{cq_resample_every}}{{cq_resample_jitter}}s"
 
-- name: '{{mm_prefix}} Get fields from source'
-  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SHOW FIELD KEYS FROM {{measurement}}" return_content=yes
+- name: '{{mm_prefix}} Get fields from SOURCE'
+  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SHOW FIELD KEYS FROM {{source_mm}}" return_content=yes
   register: ansible_influx_mm_fields
   when: ifx_db.source is defined
 
@@ -38,7 +37,7 @@
   uri: 
     url: "{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" 
     method: POST 
-    body: "q=SELECT COUNT(*) FROM {{measurement}} WHERE time >= now() - {{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}}"
+    body: "q=SELECT COUNT(*) FROM {{source_mm}} WHERE time >= now() - {{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}}"
     return_content: yes
   register: ansible_influx_mm_count
   when: mm_backfill and measurement not in ifx_mms and ifx_db.source is defined
@@ -120,7 +119,7 @@
   when: ifx_db.source is defined
 
 - name: '{{mm_prefix}} Get TARGET measurement count(*)'
-  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SELECT COUNT(*) FROM {{ifx_db.name}}.{{ifx_db.rp_name}}.{{measurement}}" return_content=yes
+  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SELECT COUNT(*) FROM {{target_mm}}" return_content=yes
   register: ansible_influx_mm_count
   when: mm_backfill and ifx_db.source is defined and mm_backfill_result|int > 0
 
