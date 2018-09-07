@@ -51,30 +51,31 @@ else
   exit 1
 fi
 
-curl -s "$influxdb/query" --data-urlencode 'q=CREATE DATABASE test' || { 
+curl -s "$influxdb/query" --data-urlencode 'q=CREATE DATABASE test' > /dev/null || { 
   echo "InfluxDB not reachable!"; exit 1; 
 }
-
-echo "Ready to go..."
-echo "Timerange: ${tr_sec}s in ${ivl_sec}s intervals"
-echo "Generating value with '$value'"
 
 # time
 # start date = now-$tr_sec
 if [[ "$dt" = "now" ]]; then
   start_sec=$(($(date +%s)-tr_sec))
 else
-  start_sec=$(date -d "$dt" +%s)
+  start_sec=$(date -u -d "$dt" +%s)
 fi
+
+echo "Ready to go..."
+echo "Timerange: from $start_sec ($(date -u -d @$start_sec +"%Y-%m-%d %H:%M:%S")), ${tr_sec}s in ${ivl_sec}s intervals (UTC)"
+echo "Generating value with '$value'"
+
 ts=$start_sec
 for i in $(seq 1 $((tr_sec/ivl_sec))); do
   v=$(eval "$value")
-  ts=$((ts+ivl_sec))
 
-  echo "interval = $i, value = $v"
-
+  echo "time = $ts interval = $i, value = $v ($(date -u -d @$ts +"%Y-%m-%d %H:%M:%S"))"
   curl -s -X POST "$influxdb/write?db=$database" --data-binary "test value=$v ${ts}000000000"
+
+  ts=$((ts+ivl_sec))
   i=$((i++))
 done
 
-curl -s "$influxdb/query?db=$database" --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test WHERE time = '$dt' GROUP BY time('$tr')" |json_pp
+curl -s "$influxdb/query?db=$database" --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test WHERE time >= ${start_sec}000000000 AND time < ${start_sec}000000000 + 1m GROUP BY time($tr)" |json_pp
