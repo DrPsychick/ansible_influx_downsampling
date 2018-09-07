@@ -6,6 +6,7 @@ ansible_influx_databases:
     retention_policy: 
       amount: "7"
       unit: "d"
+      default: yes
     source:
       name: "test"
       rp_name: "autogen"
@@ -17,4 +18,4 @@ ansible_influx_databases:
     measurements: { test }
 
 my_ansible_influx_queries:
-  test: SELECT MEAN(value)
+  test: SELECT MEAN(value) AS value

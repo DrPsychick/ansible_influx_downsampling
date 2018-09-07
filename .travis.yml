@@ -42,8 +42,8 @@ script:
   # TEST = migration
   - >
     if [ "$TEST" = "migration" ]; then 
-    curl http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT * FROM test";
-    result=$(curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test" | jq .results[0].series[0].values[0][1]); 
+    curl http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT * FROM test_agg.rp_7d.test";
+    result=$(curl http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT MEAN(value) FROM test_agg.rp_7d.test" | jq .results[0].series[0].values[0][1]); 
     [ "$result" -ne 35 ] && (exit 1);
     fi
 
@@ -57,6 +57,7 @@ after_script:
     if [ "$TEST" = "migration" ]; then
     curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT * FROM test.autogen.test" | jq .results[0].series[0];
     curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test" | jq .results[0].series[0];
+    curl http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT MEAN(value) FROM test_agg.rp_7d.test" | jq .results[0].series[0];
     fi
 
 notifications:
