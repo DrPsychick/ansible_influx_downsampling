@@ -34,9 +34,9 @@
   when: ifx_db.source is defined
 
 - name: '{{mm_prefix}} Get SOURCE measurement count(*)'
-  uri: 
-    url: "{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" 
-    method: POST 
+  uri:
+    url: "{{ansible_influx_url}}/query?db={{ifx_db.source.name}}"
+    method: POST
     body: "q=SELECT COUNT(*) FROM {{source_mm}} WHERE time >= now() - {{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}}"
     return_content: yes
   register: ansible_influx_mm_count
@@ -50,7 +50,7 @@
 
 - name: '{{mm_prefix}} Count on SOURCE'
   debug: msg="Max count on SOURCE {{measurement}} = {{mm_count_source}}"
-  when: mm_count_source|int > 0 
+  when: mm_count_source|int > 0
 
 - name: '{{mm_prefix}} Create list of fields'
   set_fact:
@@ -67,7 +67,7 @@
     # now() - rp.amount+rp.unit - x*bf.step
     body: >
       q={{cq_select}} INTO {{target_mm}} FROM {{source_mm}}
-      WHERE time >= now() - {{seq}}{{ifx_db.retention_policy.unit}} 
+      WHERE time >= now() - {{seq}}{{ifx_db.retention_policy.unit}}
       AND time < now() - {{seq|int - ifx_db.backfill.step|default(1)|int}}{{ifx_db.retention_policy.unit}}
       {{bf_where}} GROUP BY time({{cq_interval}}),{{cq_groupby|join(',')}}
     return_content: yes
@@ -84,9 +84,9 @@
 
 - name: '{{mm_prefix}} Print result from backfill'
   debug: var=ansible_influx_mm_backfill
-  when: (ansible_influx_mm_backfill is succeeded 
-    and ansible_influx_mm_backfill is not changed 
-    and (ansible_influx_mm_backfill.results|map(attribute='skipped')|flatten|default([])|unique != [ true ])) 
+  when: (ansible_influx_mm_backfill is succeeded
+    and ansible_influx_mm_backfill is not changed
+    and (ansible_influx_mm_backfill.results|map(attribute='skipped')|flatten|default([])|unique != [ true ]))
     or ansible_influx_mm_backfill is failed
 
 - name: '{{mm_prefix}} Sum up written data points'
@@ -99,9 +99,9 @@
   when: mm_backfill and ansible_influx_mm_backfill is changed
 
 - name: '{{mm_prefix}} Drop continuous query {{ifx_cq_name}}'
-  uri: 
-    url: "{{ansible_influx_url}}/query" 
-    method: POST 
+  uri:
+    url: "{{ansible_influx_url}}/query"
+    method: POST
     body: 'q=DROP CONTINUOUS QUERY "{{ifx_cq_name}}" ON "{{ifx_db.name}}"'
   when: ifx_db.source is defined and ifx_cq_name in ifx_cqs
 

@@ -24,12 +24,9 @@
 #- debug: var=ansible_influx_cqs
 - set_fact:
     ifx_cqs: "{{ansible_influx_cqs.json.results[0].series |rejectattr('values', 'callable') |map(attribute='values') |flatten |select('match', '^(?!CREATE).*') |list if ansible_influx_cqs.json.results[0].series is defined else []}}"
-
 #- debug: var=ifx_cqs
 
 - name: Setup databases
   include_tasks: influxdb_database.yml database={{db_item}}
   with_items: "{{ansible_influx_databases|sort}}"
   loop_control: { loop_var: db_item }
-
-

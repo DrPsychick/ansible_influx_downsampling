@@ -17,11 +17,11 @@ ansible_influx_databases:
     measurements: { cpu }
 
 # Predefined set of queries for standard telegraf inputs
-# You can overwrite these with selectively the variable "my_ansible_influx_queries" 
+# You can overwrite these with selectively the variable "my_ansible_influx_queries"
 # Use the same structure as below.
 
 # Attention!
-# columns have to be named explicitly, otherwise influxdb will prepend the aggregation 
+# columns have to be named explicitly, otherwise influxdb will prepend the aggregation
 # method name (e.g. mean(usage_user) -> mean_usage_user)
 # see https://github.com/influxdata/influxdb/issues/7332
 ansible_influx_queries:

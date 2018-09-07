@@ -120,4 +120,3 @@
 - name: '{{db_prefix}} Average series downsampling'
   debug: msg="Average series downsampling = {{ (mm_downsampling_totals|map('float')|sum(start=0) / mm_downsampling_totals|length) |round(2) }} %"
   when: ifx_backfill and mm_downsampling_totals|length > 0
-

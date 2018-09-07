@@ -1,5 +1,5 @@
 ---
-services: 
+services:
   - docker
 language: python
 python: "2.7"
@@ -20,7 +20,7 @@ before_install:
 install:
   # Install ansible and jq.
   - "pip install ansible jq"
-  
+
   # Add ansible.cfg to pick up roles path.
   - printf "[defaults]\nroles_path = ../" > ansible.cfg
 
@@ -35,16 +35,16 @@ script:
 
   # Run the role/playbook again, checking to make sure it's idempotent.
   - >
-    ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo 
+    ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo
     | grep -q 'changed=0.*failed=0'
     && (echo 'Idempotence test: pass' && exit 0)
     || (echo 'Idempotence test: fail' && exit 1);
 
   # TEST = migration
   - >
-    if [ "$TEST" = "migration" ]; then 
+    if [ "$TEST" = "migration" ]; then
     curl -s http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT * FROM test_agg.rp_7d.test";
-    result=$(curl -s http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT MEAN(value) FROM test_agg.rp_7d.test" | jq .results[0].series[0].values[0][1]); 
+    result=$(curl -s http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT MEAN(value) FROM test_agg.rp_7d.test" | jq .results[0].series[0].values[0][1]);
     [ "$result" -ne 35 ] && (echo "Aggregation test failed: '$result' != 35"; exit 1) || (echo "Aggregation test: pass"; exit 0);
     fi
 
