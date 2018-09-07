@@ -11,6 +11,7 @@
   set_fact:
     ifx_dbs: "{{ansible_influx_dbs.json.results[0].series|map(attribute='values')|flatten|default([])}}"
     ansible_influx_queries: "{{ansible_influx_queries|combine(my_ansible_influx_queries|default({}))}}"
+    recreate_cqs: "{{recreate_cqs|default(false)}}"
 
 # needed to check if RP needs to be created
 - name: Show continuous queries
@@ -22,13 +23,10 @@
 
 #- debug: var=ansible_influx_cqs
 - set_fact:
-    ifx_cqs: "{{ansible_influx_cqs.json.results[0].series |rejectattr('values', 'callable') |map(attribute='values') |flatten |select('match', '^CREATE') |list if ansible_influx_cqs.json.results[0].series is defined else default([])}}"
-
+    ifx_cqs: "{{ansible_influx_cqs.json.results[0].series |rejectattr('values', 'callable') |map(attribute='values') |flatten |select('match', '^(?!CREATE).*') |list if ansible_influx_cqs.json.results[0].series is defined else []}}"
 #- debug: var=ifx_cqs
 
 - name: Setup databases
   include_tasks: influxdb_database.yml database={{db_item}}
   with_items: "{{ansible_influx_databases|sort}}"
   loop_control: { loop_var: db_item }
-
-

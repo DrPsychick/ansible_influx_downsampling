@@ -14,5 +14,3 @@ ansible_influx_databases:
     # cq_resample: only useful when doing cq
     # backfill: only needed when doing cq
     # measurements: only needed when doing cq
-
-
