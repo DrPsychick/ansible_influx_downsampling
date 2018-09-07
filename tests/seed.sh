@@ -10,7 +10,7 @@ db_name=$database.$retention_policy.$measurement
 # generate data:
 # timerange: 1m -> 60m
 # interval: 1s -> 1m
-# datetime: 2018-09-04 10:00:00
+# datetime: 2018-09-04 10:00:00 or "now"
 # value: ("seq+step10start10"|"random"|...)
 
 tr=${1:-1m}
@@ -61,7 +61,11 @@ echo "Generating value with '$value'"
 
 # time
 # start date = now-$tr_sec
-start_sec=$(($(date -d "$dt" +%s)-tr_sec))
+if [[ "$dt" = "now" ]]; then
+  start_sec=$(($(date +%s)-tr_sec))
+else
+  start_sec=$(date -d "$dt" +%s)
+fi
 ts=$start_sec
 for i in $(seq 1 $((tr_sec/ivl_sec))); do
   v=$(eval "$value")
