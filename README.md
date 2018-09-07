@@ -53,6 +53,7 @@ Attention
 If you enable **backfill**:
 * Check the size of your data first. Depending on the amount of series in a measurement, you need to configure the time range for backfilling. A good default is "1d".
 * Timeouts: Your InfluxDB as well as the calls in this playbook may time out! Or you may hit other limits in the influxdb.conf.
+* Stats: They will **likely** crash because they query big time ranges with lots of data. Only turn them on for small backfill jobs.
 
 My Settings for backfilling 9GB of data on 5 aggregation levels on a docker container with 3GB of RAM (no CPU limit for backfilling)
 * `ansible_influx_databases`, 5 levels: 14d@1m, 30d@5m, 90d@15m, 1y@1h, 3y@3h
@@ -65,7 +66,7 @@ My full setup can be found in [examples/full-5level-backfill-compact/](examples/
 History
 =======
 
-Version 0.3:
+Version 0.3: Complete incl. automatic compaction, tests and good examples.
 
 * [ ] full readme -> docs
 * [ ] multiple examples -> docs/example
@@ -78,14 +79,14 @@ Version 0.3:
 * [ ] add RP shard duration option
 * [ ] refactor/cleanup variables
 
-Version 0.2:
+Version 0.2: Fully working and tested. No deleting of data. Stats + CQ update.
 
 * [x] Update description + basic readme
 * [x] Check variables upfront (define clear dependencies) and print useful error messages before acting
 * [x] fix: continuous_query is required even if empty (bad usability)
 * [ ] more tests: 
    * [x] test parallel tests
-   * [x]prepare seeding (generator or file?)
+   * [x] prepare seeding (generator or file?)
    * [x] run downsampling + backfill on existing DB (needs seed)
    * [ ] run backfill with step X (on RP with 7d)
 * [x] set RP default yes/no
