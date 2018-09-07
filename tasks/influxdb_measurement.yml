@@ -126,7 +126,7 @@
 - name: '{{mm_prefix}} Calcuate TARGET measurement count'
   set_fact:
     mm_count: "{{ansible_influx_mm_count.json.results[0].series|map(attribute='values')|flatten|select('number')|map('int')|max}}"
-  when: ansible_influx_mm_count is defined and ansible_influx_mm_count.json.results[0].series is defined
+  when: ansible_influx_mm_count is not skipped and ansible_influx_mm_count.json.results[0].series is defined
 
 - name: '{{mm_prefix}} Count on TARGET'
   debug: msg="Max count on TARGET {{measurement}} = {{mm_count}}"

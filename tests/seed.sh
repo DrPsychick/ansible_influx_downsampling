@@ -10,7 +10,7 @@ db_name=$database.$retention_policy.$measurement
 # generate data:
 # timerange: 1m -> 60m
 # interval: 1s -> 1m
-# datetime: 2018-09-04 10:00:00 or "now"
+# datetime (UTC): 2018-09-04 10:00:00 or "now"
 # value: ("seq+step10start10"|"random"|...)
 
 tr=${1:-1m}
@@ -58,7 +58,7 @@ curl -s "$influxdb/query" --data-urlencode 'q=CREATE DATABASE test' > /dev/null 
 # time
 # start date = now-$tr_sec
 if [[ "$dt" = "now" ]]; then
-  start_sec=$(($(date +%s)-tr_sec))
+  start_sec=$(($(date -u +%s)-tr_sec))
 else
   start_sec=$(date -u -d "$dt" +%s)
 fi
@@ -71,7 +71,7 @@ ts=$start_sec
 for i in $(seq 1 $((tr_sec/ivl_sec))); do
   v=$(eval "$value")
 
-  echo "time = $ts interval = $i, value = $v ($(date -u -d @$ts +"%Y-%m-%d %H:%M:%S"))"
+  echo "time = $ts interval = $i, value = $v ($(date -u -d @$ts +"%Y-%m-%d %H:%M:%S") UTC)"
   curl -s -X POST "$influxdb/write?db=$database" --data-binary "test value=$v ${ts}000000000"
 
   ts=$((ts+ivl_sec))

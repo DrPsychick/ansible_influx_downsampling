@@ -2,9 +2,9 @@
 
 ansible_influx_databases:
   level_0:
-    name: "test_agg"
+    name: "test_4d"
     retention_policy: 
-      amount: "7"
+      amount: "4"
       unit: "d"
       default: yes
     source:
@@ -12,9 +12,11 @@ ansible_influx_databases:
       rp_name: "autogen"
     continuous_query:
       interval: "1m"
+      where: "1 = 1"
       resample: { every: "10s", for: "1m" }
     backfill:
       stats: true
+      step: 2
     measurements: { test }
 
 my_ansible_influx_queries:

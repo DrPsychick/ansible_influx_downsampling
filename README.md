@@ -84,11 +84,11 @@ Version 0.2: Fully working and tested. No deleting of data. Stats + CQ update.
 * [x] Update description + basic readme
 * [x] Check variables upfront (define clear dependencies) and print useful error messages before acting
 * [x] fix: continuous_query is required even if empty (bad usability)
-* [ ] more tests: 
+* [x] more tests: 
    * [x] test parallel tests
    * [x] prepare seeding (generator or file?)
    * [x] run downsampling + backfill on existing DB (needs seed)
-   * [ ] run backfill with step X (on RP with 7d)
+   * [x] run backfill with step X (on RP with 7d)
 * [x] set RP default yes/no
 * [x] improve/extend dict structure (BC break!)
 * [x] update continuous queries (drop+create)

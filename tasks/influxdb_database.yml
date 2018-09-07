@@ -93,6 +93,7 @@
 - name: '{{db_prefix}} Print list of measurements'
   debug: msg="List of measurements on SOURCE = {{ifx_source_mms|join(', ')}}"
   when: ifx_db.source is defined
+  failed_when: ifx_source_mms|length == 0
 
 - name: '{{db_prefix}} Create retention policy {{ifx_db.rp_name}}'
   uri:

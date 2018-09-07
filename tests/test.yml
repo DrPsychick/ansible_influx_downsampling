@@ -6,4 +6,4 @@
   pre_tasks:
     - include_vars: vars/{{lookup('env', 'TEST')}}.yml
   roles:
-    - ansible-influx-downsampling
+    - ansible_influx_downsampling
