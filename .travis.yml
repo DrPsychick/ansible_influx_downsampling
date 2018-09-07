@@ -1,40 +1,65 @@
 ---
-services: 
+services:
   - docker
 language: python
 python: "2.7"
+cache: pip
 
 sudo: required
 dist: xenial
 
+env:
+  - TEST=basic
+  - TEST=migration
+
 before_install:
   # Make sure everything's up to date.
-  - "sudo apt-get update -qq"
+  - sudo apt-get update -qq
   - docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
 
 install:
-  # Install Ansible.
-  - "pip install ansible"
+  # Install ansible and jq.
+  - "pip install ansible jq"
 
   # Add ansible.cfg to pick up roles path.
   - printf "[defaults]\nroles_path = ../" > ansible.cfg
 
+  # Seed influxdb
+  - if [ "$TEST" = "migration" ]; then ./tests/seed.sh 1m 10s "$(date -d -1hour +"%Y-%m-%d %H:%M:00")" seq+step10; fi
+
 script:
   # Check the role/playbook's syntax.
-  - "ansible-playbook -i tests/inventory tests/test.yml --syntax-check"
+  - ansible-playbook -i tests/inventory tests/test.yml --syntax-check
   # Run the role/playbook with ansible-playbook.
-  - "ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo"
+  - ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo
 
   # Run the role/playbook again, checking to make sure it's idempotent.
   - >
     ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo
     | grep -q 'changed=0.*failed=0'
     && (echo 'Idempotence test: pass' && exit 0)
-    || (echo 'Idempotence test: fail' && exit 1)
+    || (echo 'Idempotence test: fail' && exit 1);
+
+  # TEST = migration
+  - >
+    if [ "$TEST" = "migration" ]; then
+    curl -s http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT * FROM test_agg.rp_7d.test";
+    result=$(curl -s http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT MEAN(value) FROM test_agg.rp_7d.test" | jq .results[0].series[0].values[0][1]);
+    [ "$result" -ne 35 ] && (echo "Aggregation test failed: '$result' != 35"; exit 1) || (echo "Aggregation test: pass"; exit 0);
+    fi
 
 after_script:
-  - curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW DATABASES"
-  - curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW RETENTION POLICIES"
+  - >
+    if [ "$TEST" = "basic" ]; then
+    curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW DATABASES";
+    curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW RETENTION POLICIES";
+    fi
+  - >
+    if [ "$TEST" = "migration" ]; then
+    curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT * FROM test.autogen.test" | jq .results[0].series[0];
+    curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test" | jq .results[0].series[0];
+    curl http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT MEAN(value) FROM test_agg.rp_7d.test" | jq .results[0].series[0];
+    fi
 
 notifications:
   webhooks: https://galaxy.ansible.com/api/v1/notifications/
