@@ -10,11 +10,13 @@ db_name=$database.$retention_policy.$measurement
 # generate data:
 # timerange: 1m -> 60m
 # interval: 1s -> 1m
+# datetime: 2018-09-04 10:00:00
 # value: ("seq+step10start10"|"random"|...)
 
 tr=${1:-1m}
 ivl=${2:-10s}
-val=${3:-"random"}
+dt=${3:-"2018-09-01 10:00:00"}
+val=${4:-"random"}
 
 # timerange / interval
 if [[ "$tr" == *m ]]; then
@@ -59,7 +61,7 @@ echo "Generating value with '$value'"
 
 # time
 # start date = now-$tr_sec
-start_sec=$(($(date +%s)-tr_sec))
+start_sec=$(($(date -d "$dt" +%s)-tr_sec))
 ts=$start_sec
 for i in $(seq 1 $((tr_sec/ivl_sec))); do
   v=$(eval "$value")
@@ -71,4 +73,4 @@ for i in $(seq 1 $((tr_sec/ivl_sec))); do
   i=$((i++))
 done
 
-curl -s "$influxdb/query?db=$database" --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test" |json_pp
+curl -s "$influxdb/query?db=$database" --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test WHERE time = '$dt' GROUP BY time('$tr')" |json_pp
