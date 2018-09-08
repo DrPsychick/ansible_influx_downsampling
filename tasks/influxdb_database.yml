@@ -29,7 +29,8 @@
   fail:
     msg: "DB attribute 'source' is required for 'backfill' or 'continuous_query'"
   when: ifx_db.source is not defined and (
-    ifx_db.backfill.interval is defined or ifx_db.continuous_query.interval is defined)
+    ifx_db.continuous_query.interval is defined
+    or (ifx_db.backfill is defined and ifx_db.backfill.interval is defined))
 
 - name: "Assert backfill settings 'step' and 'source'"
   fail:
