@@ -15,7 +15,7 @@
     bf_where: "{{'AND '+ifx_mm.where if ifx_mm.where is defined else ifx_bf_where}}"
     cq_groupby:  "{{ifx_mm.groupby if ifx_mm.groupby is defined else ifx_cq_groupby}}"
     cq_where: "{{'WHERE '+ifx_mm.where if ifx_mm.where is defined else ifx_cq_where}}"
-    cq_interval: "{{ifx_mm.interval if ifx_mm.interval is defined else ifx_cq_interval}}"
+    cq_interval: "{{'time('+ifx_mm.interval+')' if ifx_mm.interval is defined and ifx_mm.ifx_mm != '*' else ifx_cq_interval}}"
     cq_resample: "{{'RESAMPLE' if ifx_mm.every is defined or ifx_mm.for is defined else ifx_cq_resample}}"
     cq_resample_every: "{{'EVERY '+ifx_mm.every if ifx_mm.every is defined else ifx_cq_resample_every}}"
     cq_resample_for: "{{'FOR '+ifx_mm.for if ifx_mm.for is defined else ifx_cq_resample_for}}"
@@ -69,7 +69,7 @@
       q={{cq_select}} INTO {{target_mm}} FROM {{source_mm}}
       WHERE time >= now() - {{seq}}{{ifx_db.retention_policy.unit}}
       AND time < now() - {{seq|int - ifx_db.backfill.step|default(1)|int}}{{ifx_db.retention_policy.unit}}
-      {{bf_where}} GROUP BY time({{cq_interval}}),{{cq_groupby|join(',')}}
+      {{bf_where}} GROUP BY {{cq_interval}},{{cq_groupby|join(',')}}
     return_content: yes
   with_sequence: start={{ifx_db.retention_policy.amount|int}} end={{ifx_db.backfill.step|default(1)|int}} stride=-{{ifx_db.backfill.step|default(1)|int}}
   loop_control: { loop_var: seq }
@@ -80,7 +80,10 @@
     )
   register: ansible_influx_mm_backfill
   changed_when: ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined and ansible_influx_mm_backfill.json.results[0].statement_id == 0
-  failed_when: ansible_influx_mm_backfill.rc|default(0) == 1 or (ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined and ansible_influx_mm_backfill.json.results[0].error is defined)
+  failed_when: ansible_influx_mm_backfill.rc|default(0) == 1 or (
+    ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined 
+    and ansible_influx_mm_backfill.json.results[0].error is defined 
+    and not 'points beyond retention policy dropped' in ansible_influx_mm_backfill.json.results[0].error )
 
 - name: '{{mm_prefix}} Print result from backfill'
   debug: var=ansible_influx_mm_backfill
@@ -91,7 +94,7 @@
 
 - name: '{{mm_prefix}} Sum up written data points'
   set_fact:
-    mm_backfill_result: "{{ansible_influx_mm_backfill.results |map(attribute='json.results')|flatten |map(attribute='series')|flatten |map(attribute='values')|flatten |select('number')|map('int')|sum(start=0)}}"
+    mm_backfill_result: "{{ansible_influx_mm_backfill.results |map(attribute='json.results')|flatten |selectattr('series', 'defined')|map(attribute='series')|flatten |map(attribute='values')|flatten |select('number')|map('int')|sum(start=0)}}"
   when: mm_backfill and ansible_influx_mm_backfill is changed
 
 - name: '{{mm_prefix}} Backfill results'
@@ -103,7 +106,7 @@
     url: "{{ansible_influx_url}}/query"
     method: POST
     body: 'q=DROP CONTINUOUS QUERY "{{ifx_cq_name}}" ON "{{ifx_db.name}}"'
-  when: ifx_db.source is defined and ifx_cq_name in ifx_cqs
+  when: ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false) and ifx_cq_name in ifx_cqs 
 
 - name: '{{mm_prefix}} Creating continuous query {{ifx_cq_name}}'
   uri:
@@ -113,10 +116,10 @@
       q=CREATE CONTINUOUS QUERY "{{ifx_cq_name}}" ON "{{ifx_db.name}}"
       {{cq_resample}} {{cq_resample_every}} {{cq_resample_for}}
       BEGIN {{cq_select}} INTO {{target_mm}} FROM {{source_mm}} {{cq_where}}
-      GROUP BY time({{cq_interval}}),{{cq_groupby|join(',')}} END
+      GROUP BY {{cq_interval}},{{cq_groupby|join(',')}} END
     return_content: yes
   register: ansible_influx_mm_cq
-  when: ifx_db.source is defined
+  when: ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false)
 
 - name: '{{mm_prefix}} Get TARGET measurement count(*)'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SELECT COUNT(*) FROM {{target_mm}}" return_content=yes

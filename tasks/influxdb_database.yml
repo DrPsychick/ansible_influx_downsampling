@@ -7,7 +7,7 @@
 # some assertions - move to separate file?
 - name: "Assert basic DB attributes"
   fail:
-    msg: "DB attributes 'name' must be defined!"
+    msg: "DB attribute 'name' must be defined!"
   when: ifx_db.name is not defined
 
 - name: "Assert either 'rp_name' or 'retention_policy' are defined"
@@ -24,6 +24,12 @@
   when: ifx_db.measurements is defined and (
     ifx_db.continuous_query.interval is not defined
     and ifx_db.backfill.interval is not defined)
+
+- name: "Assert 'source' must be defined for backfilling or continuous queries"
+  fail:
+    msg: "DB attribute 'source' is required for 'backfill' or 'continuous_query'"
+  when: ifx_db.source is not defined and (
+    ifx_db.backfill is defined or ifx_db.continuous_query is defined)
 
 - name: "Assert backfill settings 'step' and 'source'"
   fail:
@@ -48,16 +54,17 @@
     ifx_cq_where: "{{'WHERE '+ifx_db.continuous_query.where if ifx_db.continuous_query.where is defined else ''}}"
     ifx_cq_groupby: "{{ifx_db.continuous_query.groupby if ifx_db.continuous_query.groupby is defined else ['*']}}"
     # ifx_cq_interval: "{{ifx_db.continuous_query.interval}}"
-    ifx_cq_interval: "{{ifx_db.continuous_query.interval
+    ifx_cq_interval: "{{'time('+ifx_db.continuous_query.interval+')'
       if ifx_db.continuous_query is defined and ifx_db.continuous_query.interval is defined else
-        ifx_db.backfill.interval if ifx_db.backfill is defined and ifx_db.backfill.interval is defined else ''
+        'time('+ifx_db.backfill.interval+')' 
+          if ifx_db.backfill is defined and ifx_db.backfill.interval is defined and ifx_db.backfill.interval != '*' else '*'
       }}"
     ifx_cq_resample: "{{'RESAMPLE ' if ifx_db.continuous_query.resample is defined else ''}}"
     ifx_cq_resample_every: "{{'EVERY '+ifx_db.continuous_query.resample.every if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.every is defined else ''}}"
     ifx_cq_resample_for: "{{'FOR '+ifx_db.continuous_query.resample.for if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.for is defined else ''}}"
     ifx_backfill: "{{ifx_db.backfill|default(false)}}"
     ifx_backfill_stats: "{{ifx_db.backfill.stats|default(false) if ifx_db.backfill is defined else false}}"
-    ifx_rp_default: "{{'DEFAULT' if ifx_db.retention_policy is defined and ifx_db.retention_policy.default|default(false) else ''}}"
+    ifx_rp_default: "{{'DEFAULT' if not (ifx_db.source.drop_after_backfill|default(false)) and ifx_db.retention_policy is defined and ifx_db.retention_policy.default|default(false) else ''}}"
     mm_backfill_totals: []
     mm_downsampling_totals: []
 
@@ -77,12 +84,12 @@
 - name: '{{db_prefix}} Get SOURCE measurements'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SHOW MEASUREMENTS" return_content=yes
   register: ansible_influx_source_mms
-  when: ifx_db.source is defined
+  when: ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false)
 
 - name: '{{db_prefix}} Get TARGET measurements'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW MEASUREMENTS" return_content=yes
   register: ansible_influx_mms
-  when: ansible_influx_db_create is not changed
+  when: ansible_influx_db_create is not changed and not ifx_db.source.drop_after_backfill|default(false)
 
 - name: '{{db_prefix}} List of retention policies and measurements'
   set_fact:
@@ -92,7 +99,7 @@
 
 - name: '{{db_prefix}} Print list of measurements'
   debug: msg="List of measurements on SOURCE = {{ifx_source_mms|join(', ')}}"
-  when: ifx_db.source is defined
+  when: ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false)
   failed_when: ifx_source_mms|length == 0
 
 - name: '{{db_prefix}} Create retention policy {{ifx_db.rp_name}}'
@@ -113,6 +120,18 @@
   loop_control: { loop_var: mm_item }
   when: ifx_db.measurements is defined
     and (recreate_cqs == 'yes' or ansible_influx_db_create is changed or mm_item not in ifx_mms)
+
+- name: '{{db_prefix}} Make RP the default'
+  uri:
+    url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
+    method: POST
+    body: >
+      q=ALTER RETENTION POLICY "{{ifx_db.rp_name}}" ON "{{ifx_db.name}}"
+      DURATION {{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}} REPLICATION 1 DEFAULT
+    return_content: yes
+  register: ansible_influx_rp_alter
+  when: ifx_db.source is defined and ifx_db.source.drop_after_backfill|default(false)
+  changed_when: ansible_influx_rp_alter.status == 200 and ansible_influx_rp_alter.json is defined and ansible_influx_rp_alter.json.results[0].statement_id == 0
 
 - name: '{{db_prefix}} Total data points written'
   debug: msg="Total data points written = {{mm_backfill_totals|map('int')|sum(start=0)}}"
