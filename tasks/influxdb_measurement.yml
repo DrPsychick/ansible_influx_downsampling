@@ -106,7 +106,7 @@
     url: "{{ansible_influx_url}}/query"
     method: POST
     body: 'q=DROP CONTINUOUS QUERY "{{ifx_cq_name}}" ON "{{ifx_db.name}}"'
-  when: ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false) and ifx_cq_name in ifx_cqs 
+  when: ifx_db.source is defined and not ifx_source_drop and ifx_cq_name in ifx_cqs 
 
 - name: '{{mm_prefix}} Creating continuous query {{ifx_cq_name}}'
   uri:
@@ -119,7 +119,7 @@
       GROUP BY {{cq_interval}},{{cq_groupby|join(',')}} END
     return_content: yes
   register: ansible_influx_mm_cq
-  when: ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false)
+  when: ifx_db.source is defined and not ifx_source_drop
 
 - name: '{{mm_prefix}} Get TARGET measurement count(*)'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SELECT COUNT(*) FROM {{target_mm}}" return_content=yes

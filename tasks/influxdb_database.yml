@@ -65,7 +65,8 @@
     ifx_cq_resample_for: "{{'FOR '+ifx_db.continuous_query.resample.for if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.for is defined else ''}}"
     ifx_backfill: "{{ifx_db.backfill|default(false)}}"
     ifx_backfill_stats: "{{ifx_db.backfill.stats|default(false) if ifx_db.backfill is defined else false}}"
-    ifx_rp_default: "{{'DEFAULT' if ifx_db.source is defined and not (ifx_db.source.drop_after_backfill|default(false)) and ifx_db.retention_policy is defined and ifx_db.retention_policy.default|default(false) else ''}}"
+    ifx_source_drop: "{{ifx_db.source.drop_after_backfill|default(false) if ifx_db.source is defined else false}}"
+    ifx_rp_default: "{{'DEFAULT' if ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false) and ifx_db.retention_policy is defined and ifx_db.retention_policy.default|default(false) else ''}}"
     mm_backfill_totals: []
     mm_downsampling_totals: []
 
@@ -85,12 +86,12 @@
 - name: '{{db_prefix}} Get SOURCE measurements'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SHOW MEASUREMENTS" return_content=yes
   register: ansible_influx_source_mms
-  when: ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false)
+  when: ifx_db.source is defined and not ifx_source_drop
 
 - name: '{{db_prefix}} Get TARGET measurements'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW MEASUREMENTS" return_content=yes
   register: ansible_influx_mms
-  when: ansible_influx_db_create is not changed and not ifx_db.source.drop_after_backfill|default(false)
+  when: ansible_influx_db_create is not changed and not ifx_source_drop
 
 - name: '{{db_prefix}} List of retention policies and measurements'
   set_fact:
@@ -100,7 +101,7 @@
 
 - name: '{{db_prefix}} Print list of measurements'
   debug: msg="List of measurements on SOURCE = {{ifx_source_mms|join(', ')}}"
-  when: ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false)
+  when: ifx_db.source is defined and not ifx_source_drop
   failed_when: ifx_source_mms|length == 0
 
 - name: '{{db_prefix}} Create retention policy {{ifx_db.rp_name}}'
@@ -131,7 +132,7 @@
       DURATION {{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}} REPLICATION 1 DEFAULT
     return_content: yes
   register: ansible_influx_rp_alter
-  when: ifx_db.source is defined and ifx_db.source.drop_after_backfill|default(false)
+  when: ifx_db.source is defined and ifx_source_drop
   changed_when: ansible_influx_rp_alter.status == 200 and ansible_influx_rp_alter.json is defined and ansible_influx_rp_alter.json.results[0].statement_id == 0
 
 - name: '{{db_prefix}} Total data points written'
