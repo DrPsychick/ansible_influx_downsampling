@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/DrPsychick/ansible-influx-downsampling.svg?branch=master)](https://travis-ci.org/DrPsychick/ansible-influx-downsampling)
+[![Build Status](https://travis-ci.org/DrPsychick/ansible_influx_downsampling.svg?branch=master)](https://travis-ci.org/DrPsychick/ansible_influx_downsampling)
 
 Configure influxDB for downsampling
 ===================================
