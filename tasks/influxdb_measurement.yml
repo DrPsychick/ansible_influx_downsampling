@@ -15,7 +15,8 @@
     bf_where: "{{'AND '+ifx_mm.where if ifx_mm.where is defined else ifx_bf_where}}"
     cq_groupby:  "{{ifx_mm.groupby if ifx_mm.groupby is defined else ifx_cq_groupby}}"
     cq_where: "{{'WHERE '+ifx_mm.where if ifx_mm.where is defined else ifx_cq_where}}"
-    cq_interval: "{{'time('+ifx_mm.interval+')' if ifx_mm.interval is defined and ifx_mm.ifx_mm != '*' else ifx_cq_interval}}"
+    cq_interval: "{{'time('+ifx_mm.interval+')' if ifx_mm.interval is defined and ifx_mm.ifx_mm != '*' else 
+        ifx_mm.interval if ifx_mm.interval is defined and ifx_mm.interval == '*' else ifx_cq_interval}}"
     cq_resample: "{{'RESAMPLE' if ifx_mm.every is defined or ifx_mm.for is defined else ifx_cq_resample}}"
     cq_resample_every: "{{'EVERY '+ifx_mm.every if ifx_mm.every is defined else ifx_cq_resample_every}}"
     cq_resample_for: "{{'FOR '+ifx_mm.for if ifx_mm.for is defined else ifx_cq_resample_for}}"
@@ -54,7 +55,8 @@
 
 - name: '{{mm_prefix}} Create list of fields'
   set_fact:
-    ifx_mm_fields: "{{ansible_influx_mm_fields.json.results[0].series|rejectattr('values', 'callable') |map(attribute='values') |flatten |select('match', '^(?!integer|float|string).*$')|list|default([])}}"
+    ifx_mm_fields: "{{ansible_influx_mm_fields.json.results[0]|selectattr('series', 'defined')|map(attribute='series')|flatten|rejectattr('values', 'callable') |map(attribute='values') |flatten |select('match', '^(?!integer|float|string).*$')|list|default([])}}"
+    cq_select: "{{'SELECT *' if ifx_source_drop else cq_select}}" # do this here to avoid another "set_fact"
 
 - name: '{{mm_prefix}} List fields'
   debug: msg="Fields of {{measurement}} - {{ifx_mm_fields|join(',')}}"

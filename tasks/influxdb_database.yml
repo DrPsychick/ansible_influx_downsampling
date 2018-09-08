@@ -54,11 +54,9 @@
     ifx_bf_where: "{{'AND '+ifx_db.continuous_query.where if ifx_db.continuous_query.where is defined else ''}}"
     ifx_cq_where: "{{'WHERE '+ifx_db.continuous_query.where if ifx_db.continuous_query.where is defined else ''}}"
     ifx_cq_groupby: "{{ifx_db.continuous_query.groupby if ifx_db.continuous_query.groupby is defined else ['*']}}"
-    # ifx_cq_interval: "{{ifx_db.continuous_query.interval}}"
     ifx_cq_interval: "{{'time('+ifx_db.continuous_query.interval+')'
       if ifx_db.continuous_query is defined and ifx_db.continuous_query.interval is defined else
-        'time('+ifx_db.backfill.interval+')' 
-          if ifx_db.backfill is defined and ifx_db.backfill.interval is defined and ifx_db.backfill.interval != '*' else '*'
+        'time('+ifx_db.backfill.interval+')' if ifx_db.backfill is defined and ifx_db.backfill.interval is defined and ifx_db.backfill.interval != '*' else '*'
       }}"
     ifx_cq_resample: "{{'RESAMPLE ' if ifx_db.continuous_query.resample is defined else ''}}"
     ifx_cq_resample_every: "{{'EVERY '+ifx_db.continuous_query.resample.every if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.every is defined else ''}}"
