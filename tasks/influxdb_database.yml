@@ -65,7 +65,7 @@
     ifx_cq_resample_for: "{{'FOR '+ifx_db.continuous_query.resample.for if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.for is defined else ''}}"
     ifx_backfill: "{{ifx_db.backfill|default(false)}}"
     ifx_backfill_stats: "{{ifx_db.backfill.stats|default(false) if ifx_db.backfill is defined else false}}"
-    ifx_rp_default: "{{'DEFAULT' if not (ifx_db.source.drop_after_backfill|default(false)) and ifx_db.retention_policy is defined and ifx_db.retention_policy.default|default(false) else ''}}"
+    ifx_rp_default: "{{'DEFAULT' if ifx_db.source is defined and not (ifx_db.source.drop_after_backfill|default(false)) and ifx_db.retention_policy is defined and ifx_db.retention_policy.default|default(false) else ''}}"
     mm_backfill_totals: []
     mm_downsampling_totals: []
 
