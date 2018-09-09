@@ -1,5 +1,9 @@
 ---
 
+- name: Set variables
+  set_fact:
+    ifx_start: "{{lookup('pipe', 'date +%s')}}"
+
 - name: Get databases
   uri: url="{{ansible_influx_url}}/query" method=POST body="q=SHOW DATABASES" return_content=yes
   register: ansible_influx_dbs
@@ -34,3 +38,6 @@
   include_tasks: influxdb_database.yml database={{db_item}}
   with_items: "{{ansible_influx_databases|sort}}"
   loop_control: { loop_var: db_item }
+
+- name: Total duration
+  debug: msg="Total duration (all levels) = {{(lookup('pipe', 'date +%s')|int - ifx_start|int)/60}} minutes"
