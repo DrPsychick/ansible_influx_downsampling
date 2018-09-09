@@ -49,7 +49,7 @@
     method: POST
     body: >
       q=SELECT COUNT(*) FROM {{source_mm}}
-      WHERE time >= now() - {{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}}
+      WHERE time >= now() - {{ifx_rp_duration}}
     return_content: yes
   register: ansible_influx_mm_count
   when: mm_backfill and measurement not in ifx_mms and ifx_db.source is defined

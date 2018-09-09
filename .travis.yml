@@ -59,7 +59,7 @@ script:
   # TEST = basic
   - >
     if [ "$TEST" = "basic" ]; then
-    result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW RETENTION POLICIES" | jq .results[0].series[0].values[1][0]);
+    result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW RETENTION POLICIES" | jq .results[0].series[0].values[1][0] |tr -d '"');
     [ "$result" = "$rp_name" ]
     && (echo "Retention policy test: pass"; exit 0)
     || (echo -e "Retention policy test: fail ('$result' != '$rp_name')"; exit 1);
@@ -68,7 +68,7 @@ script:
   # TEST = setup
   - >
     if [ "$TEST" = "setup" ]; then
-    result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m" | jq .results[0].series[0].values[0][1])
+    result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m" | jq .results[0].series[0].values[0][1])
     [ "$result" -gt 0 ]
     && (echo "Setup test: pass"; exit 0)
     || (echo -e "Setup test: fail ($result)"; exit 1);
