@@ -9,7 +9,7 @@ ansible_influx_databases:
       unit: "d"
       default: yes
     source:
-      name: "test"
+      name: "telegraf"
       rp_name: "autogen"
       drop_after_backfill: yes
     backfill:

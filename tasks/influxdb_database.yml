@@ -144,6 +144,11 @@
     # register start time of backfilling
     ifx_backfill_start: "{{ansible_date_time.epoch}}"
 
+- name: '{{db_prefix}} Source must exist for compact'
+  fail:
+    msg: "Source '{{ifx_db.source.name}}.{{ifx_db.source.rp_name}}' must exist"
+  when: ifx_source_drop and not ifx_source_exists
+
 - debug: msg="SOURCE RPs = {{ansible_influx_source_rps}}"
 - debug: msg="{{ifx_db.source.rp_name}} in {{ifx_source_rps}} = {{ifx_source_exists}}"
   when: ifx_db.source is defined
