@@ -54,8 +54,17 @@ script:
   # TEST = compact
   - >
     if [ "$TEST" = "compact" ]; then
-    curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT * FROM telegraf.autogen.cpu";
-    curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT * FROM telegraf.rp_4d.cpu";
+    curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM telegraf.autogen.cpu";
+    curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM telegraf.rp_4d.cpu";
+    result1=$(curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM telegraf.rp_4d.cpu" | jq .results[0].series[0].values[0][1]);
+    result2=$(curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM telegraf..cpu" | jq .results[0].series[0].values[0][1]);
+    [ "$result1" != "$result2" ] 
+    && (echo "Compact test: fail (new RP is not default):\n$result1 != $result2"; exit 1) 
+    || (echo "Compact test: pass (new RP is default)"; exit 0);
+    result3=$(curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT * FROM telegraf.autogen.cpu" | jq .results[0].error);
+    [ -z "$result3" ]
+    && (echo "Compact test: fail (source still exists:\n$result3)"; exit 1)
+    || (echo "Compact test: pass (source is gone)"; exit 0);
     fi
 
 after_script:
