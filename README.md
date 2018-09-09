@@ -71,10 +71,11 @@ Version 0.3: Complete incl. automatic compaction, tests and good examples.
 * [ ] full readme -> docs
 * [ ] multiple examples -> docs/example
 * [ ] more tests:
-   * [ ] run backfill without CQ and switch RP on existing data (compact/evict old data)
-   * [ ] run backfill without CQ during operation (configurable timing of input) and switch RP
-* [ ] howto switch retention policy (cleanup after all is setup)
-   * [ ] Case: copy from "autogen", no CQ, drop source after backfill + set default RP -> see test
+   * [x] run backfill without CQ and switch RP on existing data (compact/evict old data)
+   * [x] run backfill without CQ during operation and switch RP
+   * [ ] setup with 2 levels and CQ
+* [x] howto switch retention policy (cleanup after all is setup)
+   * [x] Case: copy from "autogen", no CQ, drop source after backfill + set default RP -> see test
 * [ ] shift RPs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds : use time(1m,1s) for offset!
 * [ ] add RP shard duration option
 * [ ] refactor/cleanup variables

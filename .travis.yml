@@ -9,16 +9,15 @@ sudo: required
 dist: xenial
 
 env:
-  - TEST=basic
-  - TEST=migration
-  - TEST=compact
+  global:
+  matrix:
+    - TEST=basic db_name=telegraf rp_name=rp_4d
+    - TEST=migration db_name=test_4d rp_name=rp_4d db_name_source=test
+    - TEST=compact db_name=telegraf rp_name=rp_4d
 
 before_install:
   # Make sure everything's up to date.
-  # - sudo apt-get update -qq
-  - docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
-  # start telegraf to continuously write data to influxdb
-  - if [ "$TEST" = "compact" ]; then docker run -d --net host --name telegraf telegraf:alpine; sleep 10; fi
+  #- sudo apt-get update -qq
 
 install:
   # Install ansible and jq.
@@ -27,12 +26,18 @@ install:
   # Add ansible.cfg to pick up roles path.
   - printf "[defaults]\nroles_path = ../" > ansible.cfg
 
+  - docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
+
+  # start telegraf to continuously write data to influxdb
+  - if [ "$TEST" = "compact" ]; then docker run -d --net host --name telegraf telegraf:alpine; sleep 10; fi
+
   # Seed influxdb
   - if [ "$TEST" = "migration" ]; then ./tests/seed.sh 1m 10s "$(date -d -1hour +"%Y-%m-%d %H:%M:00")" seq+step10; fi
 
 script:
   # Check the role/playbook's syntax.
   - ansible-playbook -i tests/inventory tests/test.yml --syntax-check
+
   # Run the role/playbook with ansible-playbook.
   - ansible-playbook -i tests/inventory tests/test.yml --connection=local
 
@@ -43,11 +48,20 @@ script:
     && (echo 'Idempotence test: pass' && exit 0)
     || (echo 'Idempotence test: fail' && exit 1);
 
+  # TEST = basic
+  - >
+    if [ "$TEST" = "basic" ]; then
+    result=$(curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW RETENTION POLICIES" | jq .results[0].series[0].values[0][0]);
+    [ "$result" != "$rp_name" ]
+    && (echo -e "Retention policy test: fail\n$result"; exit 1)
+    || (echo "Retention policy test: pass"; exit 0);
+    fi
+
   # TEST = migration
   - >
     if [ "$TEST" = "migration" ]; then
-    curl -s http://localhost:8086/query?db=test_4d --data-urlencode "q=SELECT * FROM test_4d.rp_4d.test";
-    result=$(curl -s http://localhost:8086/query?db=test_4d --data-urlencode "q=SELECT MEAN(value) FROM test_4d.rp_4d.test" | jq .results[0].series[0].values[0][1]);
+    curl -s http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT * FROM $db_name.$rp_name.test";
+    result=$(curl -s http://localhost:8086/query?db=$db_name--data-urlencode "q=SELECT * FROM $db_name.$rp_name.test" | jq .results[0].series[0].values[0][1]);
     [ "$result" -ne 35 ] && (echo "Aggregation test failed: '$result' != 35"; exit 1) || (echo "Aggregation test: pass"; exit 0);
     fi
 
@@ -55,29 +69,27 @@ script:
   - >
     if [ "$TEST" = "compact" ]; then
     curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM telegraf.autogen.cpu";
-    curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM telegraf.rp_4d.cpu";
-    result1=$(curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM telegraf.rp_4d.cpu" | jq .results[0].series[0].values[0][1]);
+    curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM telegraf.$rp_name.cpu";
+    result1=$(curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM telegraf.$rp_name.cpu" | jq .results[0].series[0].values[0][1]);
     result2=$(curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM telegraf..cpu" | jq .results[0].series[0].values[0][1]);
-    [ "$result1" != "$result2" ] 
-    && (echo "Compact test: fail (new RP is not default):\n$result1 != $result2"; exit 1) 
+    [ "$result1" != "$result2" ]
+    && (echo -e "Compact test: fail (new RP is not default):\n$result1 != $result2"; exit 1)
     || (echo "Compact test: pass (new RP is default)"; exit 0);
     result3=$(curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT * FROM telegraf.autogen.cpu" | jq .results[0].error);
     [ -z "$result3" ]
-    && (echo "Compact test: fail (source still exists:\n$result3)"; exit 1)
+    && (echo -e "Compact test: fail (source still exists:\n$result3)"; exit 1)
     || (echo "Compact test: pass (source is gone)"; exit 0);
     fi
 
 after_script:
-  - >
-    if [ "$TEST" = "basic" ]; then
-    curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW DATABASES";
-    curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW RETENTION POLICIES";
-    fi
+  - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW DATABASES";
+  - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW RETENTION POLICIES";
+  - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW MEASUREMENTS";
   - >
     if [ "$TEST" = "migration" ]; then
-    curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT * FROM test.autogen.test" | jq .results[0].series[0];
-    curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test" | jq .results[0].series[0];
-    curl http://localhost:8086/query?db=test_4d --data-urlencode "q=SELECT MEAN(value) FROM test_4d.rp_4d.test" | jq .results[0].series[0];
+    curl http://localhost:8086/query?db=$db_name_source --data-urlencode "q=SELECT * FROM $db_name_source.autogen.test" | jq .results[0].series[0];
+    curl http://localhost:8086/query?db=$db_name_source --data-urlencode "q=SELECT MEAN(value) FROM $db_name_source.autogen.test" | jq .results[0].series[0];
+    curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT MEAN(value) FROM $db_name.$rp_name.test" | jq .results[0].series[0];
     fi
 
 notifications:
