@@ -63,6 +63,13 @@ My Settings for backfilling 9GB of data on 5 aggregation levels on a docker cont
 
 My full setup can be found in [examples/full-5level-backfill-compact/](examples/full-5level-backfill-compact/)
 
+Use Cases
+=========
+
+* Just setup default RETENTION POLICY: [examples/basic.yml](examples/basic.yml)
+* Clone RAW data into new RETENTION POLICY and drop old data: [examples/compact.yml](examples/compact.yml)
+* Full 5 level downsampling including compaction: [examples/full-5level-backfill-compact/](examples/full-5level-backfill-compact/)
+
 History
 =======
 
