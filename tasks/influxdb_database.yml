@@ -15,11 +15,10 @@
 - name: "Assert 'retention_policy' with 'amount'+'unit' is defined"
   fail:
     msg: "DB attribute 'retention_policy' with 'amount'+'unit' or 'name' must be defined!"
-  when: ifx_db.retention_policy is not defined
-    or (
-      not (ifx_db.retention_policy.amount is defined and ifx_db.retention_policy.unit is defined)
-      or ifx_db.retention_policy.name is not defined
-    )
+  when: not (ifx_db.retention_policy is defined and (
+      (ifx_db.retention_policy.amount is defined and ifx_db.retention_policy.unit is defined)
+      or ifx_db.retention_policy.name is defined
+    ))
 
 # for all
 # if source or measurement -> source + measurement
@@ -95,8 +94,8 @@
     ifx_source_drop: "{{ifx_db.source.drop_after_backfill|default(false) if ifx_db.source is defined else false}}"
     # when retention_policy.default=true, unless drop after backfill
     ifx_rp_default: "{{'DEFAULT' if 
-      (ifx_db.retention_policy is defined and ifx_db.retention_policy.default|default(false))
-      and not (ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false))
+      ifx_db.retention_policy.default|default(false)
+      and not (ifx_db.source is defined and ifx_db.source.drop_after_backfill|default(false))
       else ''}}"
     mm_backfill_totals: []
     mm_downsampling_totals: []
