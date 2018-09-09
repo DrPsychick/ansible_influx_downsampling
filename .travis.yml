@@ -13,7 +13,7 @@ env:
   matrix:
     - TEST=basic db_name=telegraf rp_name=rp_4d
     - TEST=setup db_name=telegraf_30d rp_name=rp_30d
-    - TEST=migration db_name=test_4d rp_name=rp_4d db_name_source=test
+    - TEST=migrate db_name=test_4d rp_name=rp_4d db_name_source=test
     - TEST=compact db_name=telegraf rp_name=rp_4d
 
 before_install:
@@ -38,7 +38,7 @@ install:
 
   # Seed influxdb (after pip, so influxdb will be reachable)
   - >
-    if [ "$TEST" = "migration" ]; then
+    if [ "$TEST" = "migrate" ]; then
     ./tests/seed.sh 1m 10s "$(date -d -1hour +"%Y-%m-%d %H:%M:00")" seq+step10;
     fi
 
@@ -74,9 +74,9 @@ script:
     || (echo -e "Setup test: fail ($result)"; exit 1);
     fi
 
-  # TEST = migration
+  # TEST = migrate
   - >
-    if [ "$TEST" = "migration" ]; then
+    if [ "$TEST" = "migrate" ]; then
     curl -s http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT * FROM $db_name.$rp_name.test";
     result=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT * FROM $db_name.$rp_name.test" | jq .results[0].series[0].values[0][1]);
     [ "$result" = "35" ]
@@ -105,7 +105,7 @@ after_script:
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW RETENTION POLICIES";
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW MEASUREMENTS";
   - >
-    if [ "$TEST" = "migration" ]; then
+    if [ "$TEST" = "migrate" ]; then
     curl http://localhost:8086/query?db=$db_name_source --data-urlencode "q=SELECT * FROM $db_name_source.autogen.test" | jq .results[0].series[0];
     curl http://localhost:8086/query?db=$db_name_source --data-urlencode "q=SELECT MEAN(value) FROM $db_name_source.autogen.test" | jq .results[0].series[0];
     curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT MEAN(value) FROM $db_name.$rp_name.test" | jq .results[0].series[0];
