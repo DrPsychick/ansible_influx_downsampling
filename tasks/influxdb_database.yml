@@ -144,6 +144,7 @@
     # register start time of backfilling
     ifx_backfill_start: "{{ansible_date_time.epoch}}"
 
+- debug: msg="SOURCE RPs: {{ansible_influx_source_rps}}"
 - debug: msg="{{ifx_db.source.rp_name}} in {{ifx_source_rps}} = {{ifx_source_exists}}"
   when: ifx_db.source is defined
 
