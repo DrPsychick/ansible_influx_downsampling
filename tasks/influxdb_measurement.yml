@@ -3,7 +3,6 @@
 - name: '{{ifx_db.name}}/{{measurement}} - Set measurement variable'
   set_fact:
     ifx_mm: "{{ifx_db.measurements[measurement]}}"
-    ifx_cq_name: "cq_{{measurement}}_{{'all' if ifx_cq_interval == '*' else ifx_cq_interval}}"
     cq_counter: "{{cq_counter|default(-1)|int + 1}}" # 0, 1, 2, 3, 4, ...
 
 - name: '{{ifx_db.name}}/{{measurement}} - Set defaults'
@@ -14,6 +13,8 @@
     target_mm: '"{{ifx_db.name}}"."{{ifx_rp_name}}"."{{measurement}}"'
     cq_select: "{{ifx_mm.select if ifx_mm.select is defined else ansible_influx_queries[measurement]}}"
     bf_where: "{{'AND '+ifx_mm.where if ifx_mm.where is defined else ifx_bf_where}}"
+    cq_name: "{{'cq_'+measurement+'_'+ 
+      (ifx_mm.interval if ifx_mm.interval is defined and ifx_mm.interval != '*' else ifx_cq_name)}}"
     cq_groupby:  "{{ifx_mm.groupby if ifx_mm.groupby is defined else ifx_cq_groupby}}"
     cq_where: "{{'WHERE '+ifx_mm.where if ifx_mm.where is defined else ifx_cq_where}}"
     cq_interval: "{{'time('+ifx_mm.interval+')' if ifx_mm.interval is defined and ifx_mm.ifx_mm != '*' else
@@ -123,19 +124,19 @@
   debug: msg="Total data points written = {{mm_backfill_result}}"
   when: mm_backfill and ansible_influx_mm_backfill is changed
 
-- name: '{{mm_prefix}} Drop continuous query {{ifx_cq_name}}'
+- name: '{{mm_prefix}} Drop continuous query {{cq_name}}'
   uri:
     url: "{{ansible_influx_url}}/query"
     method: POST
-    body: 'q=DROP CONTINUOUS QUERY "{{ifx_cq_name}}" ON "{{ifx_db.name}}"'
-  when: ifx_db.source is defined and not ifx_source_drop and ifx_cq_name in ifx_cqs
+    body: 'q=DROP CONTINUOUS QUERY "{{cq_name}}" ON "{{ifx_db.name}}"'
+  when: ifx_db.source is defined and not ifx_source_drop and cq_name in ifx_cqs
 
-- name: '{{mm_prefix}} Creating continuous query {{ifx_cq_name}}'
+- name: '{{mm_prefix}} Creating continuous query {{cq_name}}'
   uri:
     url: "{{ansible_influx_url}}/query"
     method: POST
     body: >
-      q=CREATE CONTINUOUS QUERY "{{ifx_cq_name}}" ON "{{ifx_db.name}}"
+      q=CREATE CONTINUOUS QUERY "{{cq_name}}" ON "{{ifx_db.name}}"
       {{cq_resample}} {{cq_resample_every}} {{cq_resample_for}}
       BEGIN {{cq_select}} INTO {{target_mm}} FROM {{source_mm}} {{cq_where}}
       GROUP BY {{cq_interval}}{{','+cq_groupby|join(',') if cq_groupby|length > 0 else ''}} END

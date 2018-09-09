@@ -65,6 +65,7 @@
     db_prefix: "{{ifx_db.name}} -"
     #ifx_db: "{{ifx_db|combine({ 'rp_name': 'rp_'+ifx_db.retention_policy.amount+ifx_db.retention_policy.unit } if ifx_db.rp_name is not defined else { 'rp_name': ifx_db.rp_name })}}"
     ifx_rp_name: "{{'rp_'+ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}}"
+    ifx_cq_name: "{{ifx_db.continuous_query.interval if ifx_db.continuous_query.interval is defined else 'all'}}"
     ifx_bf_where: "{{'AND '+ifx_db.continuous_query.where if ifx_db.continuous_query.where is defined else ''}}"
     ifx_cq_where: "{{'WHERE '+ifx_db.continuous_query.where if ifx_db.continuous_query.where is defined else ''}}"
     ifx_cq_groupby: "{{ifx_db.continuous_query.groupby if ifx_db.continuous_query.groupby is defined else ['*']}}"
