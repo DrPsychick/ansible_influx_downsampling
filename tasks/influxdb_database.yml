@@ -130,7 +130,7 @@
     ansible_influx_bf_start: "{{ansible_date_time.epoch}}"
 
 - set_fact:
-    ifx_source_exists: "{{ifx_db.source.rp_name in ifx_rps}}"
+    ifx_source_exists: "{{ifx_db.source.rp_name in ifx_rps if ifx_db.source is defined else false}}"
 
 - name: '{{db_prefix}} Print list of measurements'
   debug: msg="List of measurements on SOURCE = {{ifx_source_mms|join(', ')}}"
