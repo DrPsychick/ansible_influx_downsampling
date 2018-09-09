@@ -59,7 +59,8 @@ script:
   # TEST = basic
   - >
     if [ "$TEST" = "basic" ]; then
-    result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW RETENTION POLICIES" | jq .results[0].series[0].values[1][0] |tr -d '"');
+    result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode 
+    "q=SHOW RETENTION POLICIES" | jq .results[0].series[0].values[1][0] |tr -d '"');
     [ "$result" = "$rp_name" ]
     && (echo "Retention policy test: pass"; exit 0)
     || (echo -e "Retention policy test: fail ('$result' != '$rp_name')"; exit 1);
@@ -68,7 +69,9 @@ script:
   # TEST = setup
   - >
     if [ "$TEST" = "setup" ]; then
-    result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m" | jq .results[0].series[0].values[0][1])
+    result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode 
+    "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m" 
+    | jq .results[0].series[0].values[0][1]);
     [ "$result" -gt 0 ]
     && (echo "Setup test: pass"; exit 0)
     || (echo -e "Setup test: fail ($result)"; exit 1);
@@ -78,7 +81,8 @@ script:
   - >
     if [ "$TEST" = "migrate" ]; then
     curl -s http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT * FROM $db_name.$rp_name.test";
-    result=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT * FROM $db_name.$rp_name.test" | jq .results[0].series[0].values[0][1]);
+    result=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
+    "q=SELECT * FROM $db_name.$rp_name.test" | jq .results[0].series[0].values[0][1]);
     [ "$result" = "35" ]
     && (echo "Aggregation test: pass"; exit 0)
     || (echo "Aggregation test failed: ('$result' != 35)"; exit 1);
@@ -87,14 +91,19 @@ script:
   # TEST = compact
   - >
     if [ "$TEST" = "compact" ]; then
-    curl -s http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.autogen.cpu";
-    curl -s http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.$rp_name.cpu";
-    result1=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.$rp_name.cpu" | jq .results[0].series[0].values[0][1]);
-    result2=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name..cpu" | jq .results[0].series[0].values[0][1]);
+    curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
+    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.autogen.cpu";
+    curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
+    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.$rp_name.cpu";
+    result1=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
+    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.$rp_name.cpu" | jq .results[0].series[0].values[0][1]);
+    result2=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
+    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name..cpu" | jq .results[0].series[0].values[0][1]);
     [ "$result1" = "$result2" ]
     && (echo "Compact test: pass (new RP is default)"; exit 0)
     || (echo -e "Compact test: fail (new RP is not default):\n$result1 != $result2"; exit 1);
-    result3=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.autogen.cpu" | jq .results[0].error);
+    result3=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
+    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.autogen.cpu" | jq .results[0].error);
     [ -n "$result3" ]
     && (echo "Compact test: pass (source is gone)"; exit 0)
     || (echo "Compact test: fail (source still exists)"; exit 1);
@@ -106,9 +115,12 @@ after_script:
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW MEASUREMENTS";
   - >
     if [ "$TEST" = "migrate" ]; then
-    curl http://localhost:8086/query?db=$db_name_source --data-urlencode "q=SELECT * FROM $db_name_source.autogen.test" | jq .results[0].series[0];
-    curl http://localhost:8086/query?db=$db_name_source --data-urlencode "q=SELECT MEAN(value) FROM $db_name_source.autogen.test" | jq .results[0].series[0];
-    curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT MEAN(value) FROM $db_name.$rp_name.test" | jq .results[0].series[0];
+    curl http://localhost:8086/query?db=$db_name_source --data-urlencode 
+    "q=SELECT * FROM $db_name_source.autogen.test" | jq .results[0].series[0];
+    curl http://localhost:8086/query?db=$db_name_source --data-urlencode 
+    "q=SELECT MEAN(value) FROM $db_name_source.autogen.test" | jq .results[0].series[0];
+    curl http://localhost:8086/query?db=$db_name --data-urlencode 
+    "q=SELECT MEAN(value) FROM $db_name.$rp_name.test" | jq .results[0].series[0];
     fi
 
 notifications:
