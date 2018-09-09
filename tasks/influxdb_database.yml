@@ -239,7 +239,7 @@
   when: ifx_backfill and mm_downsampling_totals|length > 0
 
 - name: '{{db_prefix}} Total duration'
-  debug: msg="Total duration = {{(ansible_date_time.epoch|int - ifx_backfill_start|int)}} minutes"
+  debug: msg="Total duration = {{(lookup('pipe','date +%s')|int - ifx_backfill_start|int)/60}} minutes"
 
 - name: '{{db_prefix}} Drop old RP (compact)'
   uri:
