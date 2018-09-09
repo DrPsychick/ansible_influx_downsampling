@@ -66,9 +66,10 @@ script:
     || (echo -e "Retention policy test: fail ('$result' != '$rp_name')"; exit 1);
     fi
 
-  # TEST = setup
+  # TEST = setup (wait for CQ to run)
   - >
     if [ "$TEST" = "setup" ]; then
+    sleep 10;
     result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode 
     "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m" 
     | jq .results[0].series[0].values[0][1]);
