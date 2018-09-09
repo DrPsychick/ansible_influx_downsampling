@@ -81,8 +81,11 @@
     ifx_backfill: "{{ifx_db.backfill|default(false)}}"
     ifx_backfill_stats: "{{ifx_db.backfill.stats|default(false) if ifx_db.backfill is defined else false}}"
     ifx_source_drop: "{{ifx_db.source.drop_after_backfill|default(false) if ifx_db.source is defined else false}}"
-    ifx_rp_default: "{{'DEFAULT' if ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false)
-      and ifx_db.retention_policy is defined and ifx_db.retention_policy.default|default(false) else ''}}"
+    # when retention_policy.default=true, unless drop after backfill
+    ifx_rp_default: "{{'DEFAULT' if 
+      (ifx_db.retention_policy is defined and ifx_db.retention_policy.default|default(false))
+      and not (ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false))
+      else ''}}"
     mm_backfill_totals: []
     mm_downsampling_totals: []
 

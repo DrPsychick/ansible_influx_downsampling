@@ -107,7 +107,7 @@
 - name: '{{mm_prefix}} Print result from backfill'
   debug: var=ansible_influx_mm_backfill
   when: (ansible_influx_mm_backfill is succeeded
-    and ansible_influx_mm_backfill is not changed
+    and ansible_influx_mm_backfill is not changed and ansible_influx_mm_backfill is not skipped
     and (ansible_influx_mm_backfill.results|map(attribute='skipped')|flatten|default([])|unique != [ true ]))
     or ansible_influx_mm_backfill is failed
 
