@@ -144,6 +144,8 @@
     # register start time of backfilling
     ifx_backfill_start: "{{ansible_date_time.epoch}}"
 
+- debug: msg="{{ifx_db.source.rp_name}} in {{ifx_source_rps}} = {{ifx_source_exists}}"
+
 - name: '{{db_prefix}} Print SOURCE  measurements'
   debug: msg="List of measurements on SOURCE = {{ifx_source_mms|join(', ')}}"
   when: ifx_db.source is defined and not ifx_source_drop and ifx_source_exists
