@@ -116,8 +116,6 @@
   register: ansible_influx_mms
   when: ansible_influx_db_create is not changed
 
-- debug: var=ansible_influx_mms
-
 - name: '{{db_prefix}} List of retention policies and measurements'
   set_fact:
     ifx_rps: "{{ansible_influx_rps.json.results
@@ -144,7 +142,6 @@
     ifx_cq_groupby: "{{[] if ifx_cq_interval == '*' else ifx_cq_groupby}}"
     # register start time of backfilling
     ifx_backfill_start: "{{ansible_date_time.epoch}}"
-- debug: msg="{{ifx_db.source.rp_name}} in {{ifx_source_rps}} = {{ifx_source_exists}}"
 
 - name: '{{db_prefix}} Print SOURCE  measurements'
   debug: msg="List of measurements on SOURCE = {{ifx_source_mms|join(', ')}}"
