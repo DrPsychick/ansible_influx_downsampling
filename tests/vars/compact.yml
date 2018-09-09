@@ -3,7 +3,7 @@
 # backfill 4 days, then make new RP default and drop old RP
 ansible_influx_databases:
   level_0:
-    name: "test"
+    name: "telegraf"
     retention_policy: 
       amount: "4"
       unit: "d"
@@ -16,7 +16,4 @@ ansible_influx_databases:
       interval: "*"
       stats: true
       step: 2
-    measurements: { test }
-
-my_ansible_influx_queries:
-  test: SELECT MEAN(value) AS value
+    measurements: { cpu }

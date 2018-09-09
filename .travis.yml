@@ -11,7 +11,7 @@ dist: xenial
 env:
   - TEST=basic
   - TEST=migration
-# - TEST=compact
+  - TEST=compact
 
 before_install:
   # Make sure everything's up to date.
@@ -49,6 +49,13 @@ script:
     curl -s http://localhost:8086/query?db=test_4d --data-urlencode "q=SELECT * FROM test_4d.rp_4d.test";
     result=$(curl -s http://localhost:8086/query?db=test_4d --data-urlencode "q=SELECT MEAN(value) FROM test_4d.rp_4d.test" | jq .results[0].series[0].values[0][1]);
     [ "$result" -ne 35 ] && (echo "Aggregation test failed: '$result' != 35"; exit 1) || (echo "Aggregation test: pass"; exit 0);
+    fi
+
+  # TEST = compact
+  - >
+    if [ "$TEST" = "compact" ]; then
+    curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT * FROM telegraf.autogen.cpu";
+    curl -s http://localhost:8086/query?db=telegraf --data-urlencode "q=SELECT * FROM telegraf.rp_4d.cpu";
     fi
 
 after_script:
