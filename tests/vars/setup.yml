@@ -1,0 +1,19 @@
+---
+
+# setup 1 level aggregation
+# telegraf: RAW data, evicts after 7 days
+# telegraf_30d: minute data (through CQ), evicts after 30 days
+
+ansible_influx_databases:
+  level_0:
+    name: "telegraf"
+    retention_policy: 
+      amount: "7"
+      unit: "d"
+      default: true
+  level_1:
+    name: "telegraf_30d"
+    retention_policy: { amount: "30", unit: "d", default: true }
+    source: { name: "telegraf", rp_name: "rp_7d" }
+    continuous_query: { interval: "1m" }
+    measurements: { cpu }
