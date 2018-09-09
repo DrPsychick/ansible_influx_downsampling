@@ -1,0 +1,22 @@
+---
+
+# backfill 4 days, then make new RP default and drop old RP
+ansible_influx_databases:
+  level_0:
+    name: "test"
+    retention_policy: 
+      amount: "4"
+      unit: "d"
+      default: yes
+    source:
+      name: "test"
+      rp_name: "autogen"
+      drop_after_backfill: yes
+    backfill:
+      interval: "*"
+      stats: true
+      step: 2
+    measurements: { test }
+
+my_ansible_influx_queries:
+  test: SELECT MEAN(value) AS value

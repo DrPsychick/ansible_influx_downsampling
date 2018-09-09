@@ -11,11 +11,14 @@ dist: xenial
 env:
   - TEST=basic
   - TEST=migration
+# - TEST=compact
 
 before_install:
   # Make sure everything's up to date.
   - sudo apt-get update -qq
   - docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
+  # start telegraf to continuously write data to influxdb
+  - if [ "$TEST" = "compact" ]; then docker run -d --net host --name telegraf telegraf:alpine; fi
 
 install:
   # Install ansible and jq.

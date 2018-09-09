@@ -2,7 +2,9 @@
 
 - name: '{{ansible_influx_databases[database].name}} - Set database variable'
   set_fact:
-    ifx_db: "{{ansible_influx_databases[database]|combine({ 'continuous_query': '' } if ansible_influx_databases[database].continuous_query is not defined else { 'continuous_query': ansible_influx_databases[database].continuous_query })}}"
+    ifx_db: "{{ansible_influx_databases[database]
+      |combine({ 'continuous_query': '' } if ansible_influx_databases[database].continuous_query is not defined 
+      else { 'continuous_query': ansible_influx_databases[database].continuous_query })}}"
 
 # some assertions - move to separate file?
 - name: "Assert basic DB attributes"
@@ -10,13 +12,18 @@
     msg: "DB attribute 'name' must be defined!"
   when: ifx_db.name is not defined
 
-- name: "Assert either 'rp_name' or 'retention_policy' are defined"
+- name: "Assert 'retention_policy' with 'amount'+'unit' is defined"
   fail:
-    msg: "DB attribute 'rp_name' OR 'retention_policy' with 'amount'+'unit' must be defined!"
-  when: ifx_db.rp_name is not defined and (
-    ifx_db.retention_policy is not defined
+    msg: "DB attribute 'retention_policy' with 'amount'+'unit' must be defined!"
+  when: ifx_db.retention_policy is not defined
     or ifx_db.retention_policy.amount is not defined
-    or ifx_db.retention_policy.unit is not defined)
+    or ifx_db.retention_policy.unit is not defined
+
+# for mode=setup
+# if source or measurement -> source + measurement
+# cq
+
+#
 
 - name: "Assert 'interval' must be defined when 'measurements' are defined"
   fail:
@@ -47,34 +54,47 @@
     or ifx_db.retention_policy.amount is not defined
     or ifx_db.retention_policy.unit is not defined)
 
+# REFACTOR!
+# type/case/mode = compact, setup, migrate (defines which variables are required/used and which are not)
+# compact : create RP, backfill (no CQ) per measurement, backfill last Xhours, switch RP
+# setup : create RP, setup CQ per measurement
+# migrate : create RP, backfill and setup CQ per measurement
+
 - name: '{{ifx_db.name}} - Set defaults'
   set_fact:
     db_prefix: "{{ifx_db.name}} -"
-    ifx_db: "{{ifx_db|combine({ 'rp_name': 'rp_'+ifx_db.retention_policy.amount+ifx_db.retention_policy.unit } if ifx_db.rp_name is not defined else { 'rp_name': ifx_db.rp_name })}}"
+    #ifx_db: "{{ifx_db|combine({ 'rp_name': 'rp_'+ifx_db.retention_policy.amount+ifx_db.retention_policy.unit } if ifx_db.rp_name is not defined else { 'rp_name': ifx_db.rp_name })}}"
+    ifx_rp_name: "{{'rp_'+ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}}"
     ifx_bf_where: "{{'AND '+ifx_db.continuous_query.where if ifx_db.continuous_query.where is defined else ''}}"
     ifx_cq_where: "{{'WHERE '+ifx_db.continuous_query.where if ifx_db.continuous_query.where is defined else ''}}"
     ifx_cq_groupby: "{{ifx_db.continuous_query.groupby if ifx_db.continuous_query.groupby is defined else ['*']}}"
     ifx_cq_interval: "{{'time('+ifx_db.continuous_query.interval+')'
       if ifx_db.continuous_query is defined and ifx_db.continuous_query.interval is defined else
-        'time('+ifx_db.backfill.interval+')' if ifx_db.backfill is defined and ifx_db.backfill.interval is defined and ifx_db.backfill.interval != '*' else '*'
+        'time('+ifx_db.backfill.interval+')' if ifx_db.backfill is defined and ifx_db.backfill.interval is defined 
+          and ifx_db.backfill.interval != '*' else '*'
       }}"
     ifx_cq_resample: "{{'RESAMPLE ' if ifx_db.continuous_query.resample is defined else ''}}"
-    ifx_cq_resample_every: "{{'EVERY '+ifx_db.continuous_query.resample.every if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.every is defined else ''}}"
-    ifx_cq_resample_for: "{{'FOR '+ifx_db.continuous_query.resample.for if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.for is defined else ''}}"
+    ifx_cq_resample_every: "{{'EVERY '+ifx_db.continuous_query.resample.every 
+      if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.every is defined else ''}}"
+    ifx_cq_resample_for: "{{'FOR '+ifx_db.continuous_query.resample.for if ifx_db.continuous_query.resample is defined 
+      and ifx_db.continuous_query.resample.for is defined else ''}}"
     ifx_backfill: "{{ifx_db.backfill|default(false)}}"
     ifx_backfill_stats: "{{ifx_db.backfill.stats|default(false) if ifx_db.backfill is defined else false}}"
     ifx_source_drop: "{{ifx_db.source.drop_after_backfill|default(false) if ifx_db.source is defined else false}}"
-    ifx_rp_default: "{{'DEFAULT' if ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false) and ifx_db.retention_policy is defined and ifx_db.retention_policy.default|default(false) else ''}}"
+    ifx_rp_default: "{{'DEFAULT' if ifx_db.source is defined and not ifx_db.source.drop_after_backfill|default(false) 
+      and ifx_db.retention_policy is defined and ifx_db.retention_policy.default|default(false) else ''}}"
     mm_backfill_totals: []
     mm_downsampling_totals: []
 
-- debug: var=ifx_db
+- name: '{{db_prefix}} Database definition'
+  debug: var=ifx_db
 
 - name: '{{db_prefix}} Create database'
   uri: url="{{ansible_influx_url}}/query" method=POST body="q=CREATE DATABASE {{ifx_db.name}}" return_content=yes
   when: ifx_db.name not in ifx_dbs
   register: ansible_influx_db_create
-  changed_when: ansible_influx_db_create.status == 200 and ansible_influx_db_create.json is defined and ansible_influx_db_create.json.results[0].statement_id == 0
+  changed_when: ansible_influx_db_create.status == 200 and ansible_influx_db_create.json is defined 
+    and ansible_influx_db_create.json.results[0].statement_id == 0
 
 - name: '{{db_prefix}} Get retention policies'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW RETENTION POLICIES" return_content=yes
@@ -93,45 +113,86 @@
 
 - name: '{{db_prefix}} List of retention policies and measurements'
   set_fact:
-    ifx_rps: "{{ansible_influx_rps.json.results[0].series[0]['values']|flatten if ansible_influx_db_create is not changed else []}}"
-    ifx_mms: "{{ansible_influx_mms.json.results[0].series|default([])|rejectattr('values', 'callable')|map(attribute='values')|flatten if ansible_influx_mms is not skipped and ansible_influx_mms.json.results[0].series is defined else []}}"
-    ifx_source_mms: "{{ansible_influx_source_mms.json.results[0].series|rejectattr('values', 'callable')|map(attribute='values')|flatten if ansible_influx_source_mms is not skipped and ansible_influx_source_mms.json.results[0].series is defined else []}}"
+    ifx_rps: "{{ansible_influx_rps.json.results
+      |selectattr('series','defined')|map(attribute='series')|flatten
+      |selectattr('values','sequence')|map(attribute='values')|flatten 
+      if ansible_influx_db_create is not changed else []}}"
+    ifx_mms: "{{ansible_influx_mms.json.results
+      |selectattr('series', 'defined')|map(attribute='series')|flatten
+      |rejectattr('values', 'callable')|map(attribute='values')|flatten 
+      if ansible_influx_mms is not skipped and ansible_influx_mms.json.results is defined else []}}"
+    ifx_source_mms: "{{ansible_influx_source_mms.json.results
+      |selectattr('series','defined')|map(attribute='series')|flatten
+      |rejectattr('values', 'callable')|map(attribute='values')|flatten 
+      if ansible_influx_source_mms is not skipped and ansible_influx_source_mms.json.results is defined else []}}"
+    # set empty groupby if interval = *
+    ifx_cq_groupby: "{{[] if ifx_cq_interval == '*' else ifx_cq_groupby}}"
+    ansible_influx_bf_start: "{{ansible_date_time.epoch}}"
+
+- set_fact:
+    ifx_source_exists: "{{ifx_db.source.rp_name in ifx_rps}}"
 
 - name: '{{db_prefix}} Print list of measurements'
   debug: msg="List of measurements on SOURCE = {{ifx_source_mms|join(', ')}}"
-  when: ifx_db.source is defined and not ifx_source_drop
+  when: ifx_db.source is defined and not ifx_source_drop and ifx_source_exists
   failed_when: ifx_source_mms|length == 0
 
-- name: '{{db_prefix}} Create retention policy {{ifx_db.rp_name}}'
+- name: '{{db_prefix}} Create retention policy {{ifx_rp_name}}'
   uri:
     url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
     method: POST
     body: >
-      q=CREATE RETENTION POLICY "{{ifx_db.rp_name}}" ON "{{ifx_db.name}}"
+      q=CREATE RETENTION POLICY "{{ifx_rp_name}}" ON "{{ifx_db.name}}"
       DURATION {{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}} REPLICATION 1 {{ifx_rp_default}}
     return_content: yes
-  when: ansible_influx_db_create is changed or (ifx_rps is defined and ifx_db.rp_name not in ifx_rps)
+  when: ansible_influx_db_create is changed or (ifx_rps is defined and ifx_rp_name not in ifx_rps)
   register: ansible_influx_rp_create
-  changed_when: ansible_influx_rp_create.status == 200 and ansible_influx_rp_create.json is defined and ansible_influx_rp_create.json.results[0].statement_id == 0
+  changed_when: ansible_influx_rp_create.status == 200 and ansible_influx_rp_create.json is defined 
+    and ansible_influx_rp_create.json.results[0].statement_id == 0
 
 - name: '{{db_prefix}} Create measurements'
   include_tasks: influxdb_measurement.yml measurement={{mm_item}}
   with_items: "{{ifx_db.measurements|sort}}"
   loop_control: { loop_var: mm_item }
-  when: ifx_db.measurements is defined
+  when: ifx_db.measurements is defined and ifx_source_exists
     and (recreate_cqs == 'yes' or ansible_influx_db_create is changed or mm_item not in ifx_mms)
+
+- name: '{{db_prefix}} Backfill again since start (close gap)'
+  uri:
+    url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
+    method: POST
+    body: >
+      q=SELECT * INTO "{{ifx_db.name}}"."{{ifx_rp_name}}".:MEASUREMENT
+      FROM "{{ifx_db.source.name}}"."{{ifx_db.source.rp_name}}"./^({{ifx_db.measurements|join('|')}})$/
+      WHERE time >= {{ansible_influx_bf_start}}000000000
+      GROUP BY *
+    return_content: yes
+  when: ifx_source_drop and ifx_source_exists
+  register: ansible_influx_bf_closegap
+
+- name: '{{db_prefix}} Get backfill points written'
+  set_fact:
+    db_backfill_closegap: "{{ansible_influx_bf_closegap.json.results
+      |selectattr('series', 'defined')|map(attribute='series')|flatten
+      |map(attribute='values')|flatten|select('number')|map('int')|sum(start=0)}}"
+  when: ifx_source_drop and ifx_source_exists
+
+- name: '{{db_prefix}} Backfill again points written'
+  debug: msg="Total data points written = {{db_backfill_closegap}}"
+  when: ifx_source_drop and ifx_source_exists
 
 - name: '{{db_prefix}} Make RP the default'
   uri:
     url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
     method: POST
     body: >
-      q=ALTER RETENTION POLICY "{{ifx_db.rp_name}}" ON "{{ifx_db.name}}"
-      DURATION {{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}} REPLICATION 1 DEFAULT
+      q=ALTER RETENTION POLICY "{{ifx_rp_name}}" ON "{{ifx_db.name}}" DEFAULT
+    #  DURATION {{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}} REPLICATION 1
     return_content: yes
   register: ansible_influx_rp_alter
-  when: ifx_db.source is defined and ifx_source_drop
-  changed_when: ansible_influx_rp_alter.status == 200 and ansible_influx_rp_alter.json is defined and ansible_influx_rp_alter.json.results[0].statement_id == 0
+  when: ifx_source_drop and ifx_source_exists
+  changed_when: ansible_influx_rp_alter.status == 200 and ansible_influx_rp_alter.json is defined 
+    and ansible_influx_rp_alter.json.results[0].statement_id == 0
 
 - name: '{{db_prefix}} Total data points written'
   debug: msg="Total data points written = {{mm_backfill_totals|map('int')|sum(start=0)}}"
@@ -140,3 +201,14 @@
 - name: '{{db_prefix}} Average series downsampling'
   debug: msg="Average series downsampling = {{ (mm_downsampling_totals|map('float')|sum(start=0) / mm_downsampling_totals|length) |round(2) }} %"
   when: ifx_backfill and mm_downsampling_totals|length > 0
+
+- name: '{{db_prefix}} Drop old RP (compact)'
+  uri:
+    url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
+    method: POST
+    body: >
+      q=DROP RETENTION POLICY "{{ifx_db.source.rp_name}}" ON "{{ifx_db.source.name}}"
+    return_content: yes
+  register: ansible_influx_source_drop
+  when: ifx_source_drop and ifx_source_exists
+

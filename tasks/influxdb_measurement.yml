@@ -9,8 +9,9 @@
 - name: '{{ifx_db.name}}/{{measurement}} - Set defaults'
   set_fact:
     mm_prefix: "{{ifx_db.name}}/{{measurement}} -"
-    source_mm: "{{'\"'+ifx_db.source.name+'\".\"'+ifx_db.source.rp_name+'\".\"'+measurement+'\"' if ifx_db.source is defined else ''}}"
-    target_mm: '"{{ifx_db.name}}"."{{ifx_db.rp_name}}"."{{measurement}}"'
+    source_mm: "{{'\"'+ifx_db.source.name+'\".\"'+ifx_db.source.rp_name+'\".\"'+measurement+'\"' 
+      if ifx_db.source is defined else ''}}"
+    target_mm: '"{{ifx_db.name}}"."{{ifx_rp_name}}"."{{measurement}}"'
     cq_select: "{{ifx_mm.select if ifx_mm.select is defined else ansible_influx_queries[measurement]}}"
     bf_where: "{{'AND '+ifx_mm.where if ifx_mm.where is defined else ifx_bf_where}}"
     cq_groupby:  "{{ifx_mm.groupby if ifx_mm.groupby is defined else ifx_cq_groupby}}"
@@ -23,6 +24,8 @@
     mm_count_source: 0
     mm_backfill: "{{ifx_mm.backfill if ifx_mm.backfill is defined else ifx_backfill}}"
     mm_backfill_result: 0
+    # replace: jitter -> offset time(duration,offset), time(1m,1s), time(1m,2s), ...
+    #cq_offset: "{{cq_counter*ifx_cq_offset}}"
     cq_resample_jitter: "{{cq_resample_jitter|default(0)|int + cq_counter|int if not cq_counter|int is divisibleby 2 else cq_resample_jitter|default(0)|int - cq_counter|int}}" # 0 +1 -1 +2 -2 +3 -3 ... (0 +1 -2 +3 -4 +5 ...)
     cq_resample_base: "{{ifx_mm.every|default(ifx_cq_resample_every)|regex_replace('EVERY ([0-9]*)[smdw]','\\1')|int if ifx_mm.every is defined or ifx_cq_resample_every is defined else 0}}"
 
@@ -30,7 +33,12 @@
 #- debug: msg="base({{cq_counter}}) {{cq_resample_every}}{{cq_resample_jitter}}s"
 
 - name: '{{mm_prefix}} Get fields from SOURCE'
-  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SHOW FIELD KEYS FROM {{source_mm}}" return_content=yes
+  uri: 
+    url: "{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" 
+    method: POST 
+    body: "q=SHOW FIELD KEYS FROM {{source_mm}}" 
+    return_content: yes
+  #uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SELECT fieldKey FROM {{ifx_db.source.name}}.{{ifx_db.source.rp_name}}._fieldKeys WHERE _name = '{{measurement}}'"
   register: ansible_influx_mm_fields
   when: ifx_db.source is defined
 
@@ -38,7 +46,9 @@
   uri:
     url: "{{ansible_influx_url}}/query?db={{ifx_db.source.name}}"
     method: POST
-    body: "q=SELECT COUNT(*) FROM {{source_mm}} WHERE time >= now() - {{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}}"
+    body: >
+      q=SELECT COUNT(*) FROM {{source_mm}} 
+      WHERE time >= now() - {{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}}
     return_content: yes
   register: ansible_influx_mm_count
   when: mm_backfill and measurement not in ifx_mms and ifx_db.source is defined
@@ -46,8 +56,10 @@
 
 - name: '{{mm_prefix}} Cacluate SOURCE measurement count'
   set_fact:
-    mm_count_source: "{{ansible_influx_mm_count.json.results|map(attribute='series')|flatten|map(attribute='values')|flatten|select('number')|map('int')|max}}"
-  when: ansible_influx_mm_count.json is defined and ansible_influx_mm_count.json.results[0].series is defined
+    mm_count_source: "{{ansible_influx_mm_count.json.results
+      |selectattr('series','defined')|map(attribute='series')|flatten
+      |map(attribute='values')|flatten|select('number')|map('int')|max}}"
+  when: ansible_influx_mm_count.json is defined and ansible_influx_mm_count.json.results is defined
 
 - name: '{{mm_prefix}} Count on SOURCE'
   debug: msg="Max count on SOURCE {{measurement}} = {{mm_count_source}}"
@@ -55,7 +67,10 @@
 
 - name: '{{mm_prefix}} Create list of fields'
   set_fact:
-    ifx_mm_fields: "{{ansible_influx_mm_fields.json.results[0]|selectattr('series', 'defined')|map(attribute='series')|flatten|rejectattr('values', 'callable') |map(attribute='values') |flatten |select('match', '^(?!integer|float|string).*$')|list|default([])}}"
+    ifx_mm_fields: "{{ansible_influx_mm_fields.json.results
+      |selectattr('series', 'defined')|map(attribute='series')|flatten
+      |rejectattr('values', 'callable')|map(attribute='values')|flatten 
+      |select('match', '^(?!integer|float|string).*$')|list|default([])}}"
     cq_select: "{{'SELECT *' if ifx_source_drop else cq_select}}" # do this here to avoid another "set_fact"
 
 - name: '{{mm_prefix}} List fields'
@@ -71,17 +86,19 @@
       q={{cq_select}} INTO {{target_mm}} FROM {{source_mm}}
       WHERE time >= now() - {{seq}}{{ifx_db.retention_policy.unit}}
       AND time < now() - {{seq|int - ifx_db.backfill.step|default(1)|int}}{{ifx_db.retention_policy.unit}}
-      {{bf_where}} GROUP BY {{cq_interval}},{{cq_groupby|join(',')}}
+      {{bf_where}} GROUP BY {{cq_interval}}{{','+cq_groupby|join(',') if cq_groupby|length > 0 else ''}}
     return_content: yes
   with_sequence: start={{ifx_db.retention_policy.amount|int}} end={{ifx_db.backfill.step|default(1)|int}} stride=-{{ifx_db.backfill.step|default(1)|int}}
   loop_control: { loop_var: seq }
   when: mm_backfill and measurement not in ifx_mms and ifx_db.source is defined
-    and (
-      (ansible_influx_mm_count.json is defined and ansible_influx_mm_count.json.results[0].series is defined)
-      or not ifx_backfill_stats
-    )
+#    and (
+#      # why? source count must exist or stats disabled?
+#      (ansible_influx_mm_count.json is defined and ansible_influx_mm_count.json.results[0].series is defined)
+#      or not ifx_backfill_stats
+#    )
   register: ansible_influx_mm_backfill
-  changed_when: ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined and ansible_influx_mm_backfill.json.results[0].statement_id == 0
+  changed_when: ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined 
+    and ansible_influx_mm_backfill.json.results[0].statement_id == 0
   failed_when: ansible_influx_mm_backfill.rc|default(0) == 1 or (
     ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined 
     and ansible_influx_mm_backfill.json.results[0].error is defined 
@@ -96,7 +113,10 @@
 
 - name: '{{mm_prefix}} Sum up written data points'
   set_fact:
-    mm_backfill_result: "{{ansible_influx_mm_backfill.results |map(attribute='json.results')|flatten |selectattr('series', 'defined')|map(attribute='series')|flatten |map(attribute='values')|flatten |select('number')|map('int')|sum(start=0)}}"
+    mm_backfill_result: "{{ansible_influx_mm_backfill.results
+      |map(attribute='json.results')|flatten 
+      |selectattr('series', 'defined')|map(attribute='series')|flatten 
+      |map(attribute='values')|flatten |select('number')|map('int')|sum(start=0)}}"
   when: mm_backfill and ansible_influx_mm_backfill is changed
 
 - name: '{{mm_prefix}} Backfill results'
@@ -118,20 +138,26 @@
       q=CREATE CONTINUOUS QUERY "{{ifx_cq_name}}" ON "{{ifx_db.name}}"
       {{cq_resample}} {{cq_resample_every}} {{cq_resample_for}}
       BEGIN {{cq_select}} INTO {{target_mm}} FROM {{source_mm}} {{cq_where}}
-      GROUP BY {{cq_interval}},{{cq_groupby|join(',')}} END
+      GROUP BY {{cq_interval}}{{','+cq_groupby|join(',') if cq_groupby|length > 0 else ''}} END
     return_content: yes
   register: ansible_influx_mm_cq
   when: ifx_db.source is defined and not ifx_source_drop
 
 - name: '{{mm_prefix}} Get TARGET measurement count(*)'
-  uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SELECT COUNT(*) FROM {{target_mm}}" return_content=yes
+  uri: 
+    url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
+    method: POST 
+    body: "q=SELECT COUNT(*) FROM {{target_mm}}" 
+    return_content: yes
   register: ansible_influx_mm_count
   when: mm_backfill and ifx_db.source is defined and mm_backfill_result|int > 0
 
 - name: '{{mm_prefix}} Calcuate TARGET measurement count'
   set_fact:
-    mm_count: "{{ansible_influx_mm_count.json.results[0].series|map(attribute='values')|flatten|select('number')|map('int')|max}}"
-  when: ansible_influx_mm_count is not skipped and ansible_influx_mm_count.json.results[0].series is defined
+    mm_count: "{{ansible_influx_mm_count.json.results
+      |selectattr('series','defined')|map(attribute='series')|flatten
+      |map(attribute='values')|flatten|select('number')|map('int')|max}}"
+  when: ansible_influx_mm_count is not skipped and ansible_influx_mm_count.json.results is defined
 
 - name: '{{mm_prefix}} Count on TARGET'
   debug: msg="Max count on TARGET {{measurement}} = {{mm_count}}"
@@ -144,6 +170,7 @@
 - name: '{{mm_prefix}} Collect stats'
   set_fact:
     mm_backfill_totals: "{{mm_backfill_totals|union([ mm_backfill_result ])}}"
-    mm_downsampling_totals: "{{mm_downsampling_totals|union([ mm_count|int/mm_count_source|int*100 ]) if ifx_backfill_stats else mm_downsampling_totals}}"
+    mm_downsampling_totals: "{{mm_downsampling_totals
+     |union([ mm_count|int/mm_count_source|int*100 ]) if ifx_backfill_stats else mm_downsampling_totals}}"
   when: ifx_backfill_stats and mm_count is defined and mm_count_source is defined
 
