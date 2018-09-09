@@ -1,0 +1,5 @@
+---
+
+- name: "Include definition from influxdb_{{vars_name}}.yml"
+  include_vars: influxdb_{{vars_name}}.yml
+  when: vars_name is defined

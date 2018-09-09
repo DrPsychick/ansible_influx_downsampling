@@ -159,7 +159,7 @@
     # set empty groupby if interval = * (to avoid group by *, *)
     ifx_cq_groupby: "{{[] if ifx_cq_interval == '*' else ifx_cq_groupby}}"
     # register start time of backfilling
-    ifx_backfill_start: "{{ansible_date_time.epoch}}"
+    ifx_backfill_start: "{{lookup('pipe','date +%s')}}"
 
 - name: '{{db_prefix}} Source must exist for compact'
   debug: msg="Source '{{ifx_db.source.name}}.{{ifx_db.source.rp_name}}' must exist, will skip measurements and backfill"

@@ -1,0 +1,300 @@
+---
+
+ansible_influx_url: "http://myhost.doesnotexist:8086"
+ansible_influx_timeout: 600
+
+# your own variables, to generalize and ease configuration
+my_default_mms: { cpu, disk, diskio, kernel, mem, net, netstat, nstat, processes, procstat, swap, system, docker }
+my_default_where: '"host" =~ /^(myhost|otherhost)$/'
+my_docker_mms: { docker_container_blkio, docker_container_cpu, docker_container_health, docker_container_mem, docker_container_net }
+my_docker_where: '"container_name" =~ /^(monitoring.*|backup.*|gitlab.*|dnsmasq.*|registry.*|telegraf.*)$/'
+my_influx_mms: { influxdb, influxdb_cq, influxdb_database, influxdb_httpd, influxdb_memstats, influxdb_queryExecutor, influxdb_runtime, influxdb_shard, influxdb_subscriber, influxdb_tsm1_cache, influxdb_tsm1_filestore, influxdb_tsm1_wal, influxdb_write }
+my_influx_where: '"host" =~ /^(myinfluxhost|myotherinfluxhost)$/'
+my_windows_mms: { win_cpu, win_disk, win_diskio, win_mem, win_net, win_perf_counters, win_swap, win_system }
+my_windows_where: '"host" =~ /^(mywindowshost)$/'
+
+# measurement: { cpu: { interval: "1m", where: "1=1", resample: { every: "5m", for: "10m" } } }
+
+ansible_influx_databases:
+### LEVEL 0 : make sure database and RP exist
+  level_0:
+    name: "telegraf"
+    retention_policy: { name: "autogen" }
+### LEVEL 1 : 14 days @ 1m
+  level_1:
+    name: "telegraf_14d"
+    retention_policy: { amount: "14", unit: "d", default: true }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "1m"
+      where: "{{my_default_where}}"
+      resample: { every: "5m", for: "10m" }
+    backfill: { step: "2", stats: false }
+    measurements: "{{my_default_mms}}"
+  level_1_docker:
+    name: "telegraf_14d"
+    retention_policy: { amount: "14", unit: "d", default: true }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "1m"
+      where: "{{my_docker_where}}"
+      resample: { every: "5m", for: "10m" }
+    backfill: { step: "1", stats: false }
+    measurements: "{{my_docker_mms}}"
+  level_1_influx:
+    name: "telegraf_14d"
+    retention_policy: { amount: "14", unit: "d", default: true }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "1m"
+      where: "{{my_influx_where}}"
+      resample: { every: "5m", for: "10m" }
+      groupby: [ '"database"', '"engine"', '"host"', '"retentionPolicy"' ]
+    backfill: { step: "1", stats: false }
+    measurements: "{{my_influx_mms|combine({ 'influxdb_tsm1_engine': {} })}}"
+  level_1_windows:
+    name: "telegraf_14d"
+    retention_policy: { amount: "14", unit: "d", default: true }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "1m"
+      where: "{{my_windows_where}}"
+      resample: { every: "5m", for: "10m" }
+    backfill: { step: "2", stats: true }
+    measurements: "{{my_windows_mms}}"
+
+### LEVEL 2 : 30 days @ 5m
+  level_2:
+    name: "telegraf_30d"
+    retention_policy: { amount: "30", unit: "d", default: true }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "5m"
+      where: "{{my_default_where}}"
+      resample: { every: "30m", for: "1h" }
+    backfill: { step: 1 }
+    measurements: "{{my_default_mms}}"
+  level_2_docker:
+    name: "telegraf_30d"
+    retention_policy: { amount: "30", unit: "d" }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "5m"
+      where: "{{my_docker_where}}"
+      resample: { every: "30m", for: "1h" }
+    backfill: { step: 1 }
+    measurements: "{{my_docker_mms}}"
+  level_2_influx:
+    name: "telegraf_30d"
+    retention_policy: { amount: "30", unit: "d" }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "5m"
+      where: "{{my_influx_where}}"
+      groupby: [ '"database"', '"engine"', '"host"', '"retentionPolicy"' ]
+      resample: { every: "30m", for: "1h" }
+    backfill: { step: 1 }
+    measurements: "{{my_influx_mms}}"
+  level_2_windows:
+    name: "telegraf_30d"
+    retention_policy: { amount: "30", unit: "d" }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "5m"
+      where: "{{my_windows_where}}"
+      resample: { every: "30m", for: "1h" }
+    backfill: { step: 1 }
+    measurements: "{{my_windows_mms}}"
+### LEVEL 3 : 90 days @ 15m
+  level_3:
+    name: "telegraf_90d"
+    retention_policy: { amount: "90", unit: "d", default: true }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "15m"
+      where: "{{my_default_where}}"
+      resample: { every: "1h", for: "2h" }
+    backfill: { step: 1 }
+    measurements: "{{my_default_mms}}"
+  level_3_docker:
+    name: "telegraf_90d"
+    retention_policy: { amount: "90", unit: "d" }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "15m"
+      where: "{{my_docker_where}}"
+      resample: { every: "1h", for: "2h" }
+    backfill: { step: 1 }
+    measurements: "{{my_docker_mms}}"
+  level_3_influx:
+    name: "telegraf_90d"
+    retention_policy: { amount: "90", unit: "d" }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "15m"
+      where: "{{my_influx_where}}"
+      groupby: [ '"database"', '"engine"', '"host"', '"retentionPolicy"' ]
+      resample: { every: "1h", for: "2h" }
+    backfill: { step: 1 }
+    measurements: "{{my_influx_mms}}"
+  level_3_windows:
+    name: "telegraf_90d"
+    retention_policy: { amount: "90", unit: "d" }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "15m"
+      where: "{{my_windows_where}}"
+      resample: { every: "1h", for: "2h" }
+    backfill: { step: 1 }
+    measurements: "{{my_windows_mms}}"
+### LEVEL 4 : 365 days @ 1h
+  level_4:
+    name: "telegraf_1y"
+    retention_policy: { amount: "52", unit: "w", default: true }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "1h"
+      where: "{{my_default_where}}"
+      resample: { every: "1d", for: "1d" }
+    backfill: { step: 1 }
+    measurements: "{{my_default_mms}}"
+  level_4_docker:
+    name: "telegraf_1y"
+    retention_policy: { amount: "52", unit: "w" }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "1h"
+      where: "{{my_docker_where}}"
+      resample: { every: "1d", for: "1d" }
+    backfill: { step: 1 }
+    measurements: "{{my_docker_mms}}"
+  level_4_influx:
+    name: "telegraf_1y"
+    retention_policy: { amount: "52", unit: "w" }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "1h"
+      where: "{{my_influx_where}}"
+      groupby: [ '"database"', '"engine"', '"host"', '"retentionPolicy"' ]
+      resample: { every: "1d", for: "1d" }
+    backfill: { step: 1 }
+    measurements: "{{my_influx_mms}}"
+  level_4_windows:
+    name: "telegraf_1y"
+    retention_policy: { amount: "52", unit: "w" }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "1h"
+      where: "{{my_windows_where}}"
+      resample: { every: "1d", for: "1d" }
+    backfill: { step: 1 }
+    measurements: "{{my_windows_mms}}"
+### LEVEL 5 : 730 weeks @ 3h
+  level_5:
+    name: "telegraf_3y"
+    retention_policy: { amount: "156", unit: "w", default: true }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "3h"
+      where: "{{my_default_where}}"
+      resample: { every: "2d", for: "2d" }
+    backfill: { step: 1 }
+    measurements: "{{my_default_mms}}"
+  level_5_docker:
+    name: "telegraf_3y"
+    retention_policy: { amount: "156", unit: "w" }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "3h"
+      where: "{{my_docker_where}}"
+      resample: { every: "2d", for: "2d" }
+    backfill: { step: 1 }
+    measurements: "{{my_docker_mms}}"
+  level_5_influx:
+    name: "telegraf_3y"
+    retention_policy: { amount: "156", unit: "w" }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "3h"
+      where: "{{my_influx_where}}"
+      groupby: [ '"database"', '"engine"', '"host"', '"retentionPolicy"' ]
+      resample: { every: "2d", for: "2d" }
+    backfill: { step: 1 }
+    measurements: "{{my_influx_mms}}"
+  level_5_windows:
+    name: "telegraf_3y"
+    retention_policy: { amount: "156", unit: "w" }
+    source: { name: "telegraf", rp_name: "autogen" }
+    continuous_query:
+      interval: "3h"
+      where: "{{my_windows_where}}"
+      resample: { every: "2d", for: "2d" }
+    backfill: { step: 1 }
+    measurements: "{{my_windows_mms}}"
+# last step: set retention policy as default (evict downsampled data)
+  #level_last:
+    #name: "telegraf"
+    #retention_policy: { amount: "7", unit: "d", default: true }
+    #source: { name: "telegraf", rp_name: "autogen", drop_after_backfill: yes }
+    #backfill: { interval: "*", step: 1 }
+    #measurements: { my_docker_mms | combine(my_docker_mms) | combine(my_influx_mms) | combine(my_windows_mms) }
+
+# overwrite default queries
+my_ansible_influx_queries:
+  win_cpu: >
+    SELECT mean("Benutzerzeit_(Percent)") AS "Benutzerzeit_(Percent)"
+    , mean("DPC-Zeit_(Percent)") AS "DPC-Zeit_(Percent)"
+    , mean("Interruptzeit_(Percent)") AS "Interruptzeit_(Percent)"
+    , mean("Leerlaufzeit_(Percent)") AS "Leerlaufzeit_(Percent)"
+    , mean("Privilegierte_Zeit_(Percent)") AS "Privilegierte_Zeit_(Percent)"
+    , mean("Prozessorzeit_(Percent)") AS "Prozessorzeit_(Percent)"
+  win_disk: >
+    SELECT mean("Aktuelle_Warteschlangenlänge") AS "Aktuelle_Warteschlangenlänge"
+    , mean("Freier_Speicherplatz_(Percent)") AS "Freier_Speicherplatz_(Percent)"
+    , mean("Leerlaufzeit_(Percent)") AS "Leerlaufzeit_(Percent)"
+    , mean("Lesezeit_(Percent)") AS "Lesezeit_(Percent)", mean("MB_frei") AS "MB_frei"
+    , mean("Schreibzeit_(Percent)") AS "Schreibzeit_(Percent)", mean("Zeit_(Percent)") AS "Zeit_(Percent)"
+  win_diskio: >
+    SELECT mean("Aktuelle_Warteschlangenlänge") AS "Aktuelle_Warteschlangenlänge"
+    , mean("Bytes_gelesen/s") AS "Bytes_gelesen/s", mean("Bytes_geschrieben/s") AS "Bytes_geschrieben/s"
+    , mean("Lesevorgänge/s") AS "Lesevorgänge/s", mean("Lesezeit_(Percent)") AS "Lesezeit_(Percent)"
+    , mean("Schreibvorgänge/s") AS "Schreibvorgänge/s", mean("Schreibzeit_(Percent)") AS "Schreibzeit_(Percent)"
+    , mean("Zeit_(Percent)") AS "Zeit_(Percent)"
+  win_mem: >
+    SELECT mean("Auslagerungsseiten_(Bytes)") AS "Auslagerungsseiten_(Bytes)", mean("Cachefehler/s") AS "Cachefehler/s"
+    , mean("Nicht-Auslagerungsseiten_(Bytes)") AS "Nicht-Auslagerungsseiten_(Bytes)"
+    , mean("Nullforderungsfehler/s") AS "Nullforderungsfehler/s", mean("Seiten/s") AS "Seiten/s"
+    , mean("Seitenfehler/s") AS "Seitenfehler/s", mean("Standbycache-Kernbytes") AS "Standbycache-Kernbytes"
+    , mean("Standbycache-Reservebytes") AS "Standbycache-Reservebytes"
+    , mean("Standbycache-_Bytes_mit_normaler_Priorität") AS "Standbycache-_Bytes_mit_normaler_Priorität"
+    , mean("Verfügbare_Bytes") AS "Verfügbare_Bytes", mean("Wechselfehler/s") AS "Wechselfehler/s"
+  win_net: >
+    SELECT mean("Ausgehende_Pakete,_Fehler") AS "Ausgehende_Pakete,_Fehler"
+    , mean("Ausgehende_Pakete,_verworfen") AS "Ausgehende_Pakete,_verworfen"
+    , mean("Bytes_gesendet/s") AS "Bytes_gesendet/s"
+    , mean("Empfangene_Bytes/s") AS "Empfangene_Bytes/s"
+    , mean("Empfangene_Pakete,_Fehler") AS "Empfangene_Pakete,_Fehler"
+    , mean("Empfangene_Pakete,_verworfen") AS "Empfangene_Pakete,_verworfen"
+    , mean("Empfangene_Pakete/s") AS "Empfangene_Pakete/s"
+    , mean("Pakete_gesendet/s") AS "Pakete_gesendet/s"
+  win_perf_counters: >
+    SELECT mean(Bytes_Received_persec) AS Bytes_Received_persec, mean(Bytes_Sent_persec) AS Bytes_Sent_persec
+    , mean(Packets_Outbound_Discarded) AS Packets_Outbound_Discarded
+    , mean(Packets_Outbound_Errors) AS Packets_Outbound_Errors
+    , mean(Packets_Received_Discarded) AS Packets_Received_Discarded
+    , mean(Packets_Received_Errors) AS Packets_Received_Errors
+    , mean(Packets_Received_persec) AS Packets_Received_persec
+    , mean(Packets_Sent_persec) AS Packets_Sent_persec
+  win_swap: >
+    SELECT mean("Belegung_(Percent)") AS "Belegung_(Percent)"
+  win_system: >
+    SELECT mean("Kontextwechsel/s") AS "Kontextwechsel/s"
+    , mean("Prozesse") AS "Prozesse"
+    , mean("Prozessor-Warteschlangenlänge") AS "Prozessor-Warteschlangenlänge"
+    , mean("Systemaufrufe/s") AS "Systemaufrufe/s"
+    , mean("Systembetriebszeit") AS "Systembetriebszeit"
+    , mean(Context_Switches_persec) AS Context_Switches_persec
+    , mean(Processor_Queue_Length) AS Processor_Queue_Length
+    , mean(System_Calls_persec) AS System_Calls_persec
+    , mean(System_Up_Time) AS System_Up_Time
+    , mean(Threads) AS Threads

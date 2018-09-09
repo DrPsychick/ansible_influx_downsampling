@@ -24,7 +24,7 @@ Setup
 -----
 
 Easiest setup is create a role in your own repository and adding this:
-* Decide on the name of the setup, let's call the role "" and the setup"frank"
+* Decide on the name of the setup, let's call the role "influx-setup" and the setup "frank"
 * *hint* you can have any number of setup configured in this role. You just always have to load first **your** role (defining the setup) and then **DrPsychick.ansible_influx_downsampling** for each setup.
 
 `tasks/main.yml`
@@ -43,7 +43,7 @@ Now in your playbook, include both roles:
 - name: InfluxDB 
   hosts: localhost
   roles: 
-    - { role: , vars_name: "frank" }
+    - { role: influx-setup, vars_name: "frank" }
     - { role: DrPsychick.ansible_influxdb_downsampling}
 ```
 
@@ -59,7 +59,7 @@ My Settings for backfilling 9GB of data on 5 aggregation levels on a docker cont
 * `ansible_influx_databases`, 5 levels: 14d@1m, 30d@5m, 90d@15m, 1y@1h, 3y@3h
 * `ansible_influx_timeout`: 600 (10 minutes)
 * influxdb.conf: `query-timeout="600s", max-select-point=200000000, max-select-series=1000000, log-queries-after="10s"`
-* duration:
+* duration: 14d=42 minutes, 30d=, 90d=, 1y=, 3y=
 
 My full setup can be found in [examples/full-5level-backfill-compact/](examples/full-5level-backfill-compact/)
 
@@ -69,11 +69,11 @@ History
 Version 0.3: Complete incl. automatic compaction, tests and good examples.
 
 * [ ] full readme -> docs
-* [ ] multiple examples -> docs/example
+* [ ] multiple examples -> see examples/
 * [x] more tests:
-   * [x] run backfill without CQ and switch RP on existing data (compact/evict old data)
    * [x] run backfill without CQ during operation and switch RP
    * [x] setup with 2 levels and CQ
+   * [ ] recreate CQs
 * [x] howto switch retention policy (cleanup after all is setup)
    * [x] Case: copy from "autogen", no CQ, drop source after backfill + set default RP -> see test
 * [ ] shift RPs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds : use time(1m,1s) for offset!
