@@ -21,12 +21,7 @@ before_install:
   #- sudo apt-get update -qq
 
 install:
-  # Install ansible and jq.
-  - "pip install ansible jq"
-
-  # Add ansible.cfg to pick up roles path.
-  - printf "[defaults]\nroles_path = ../" > ansible.cfg
-
+  # start influxdb (will take some time to be reachable!)
   - docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
 
   # start telegraf to continuously write data to influxdb
@@ -35,7 +30,13 @@ install:
     docker run -d --net host --name telegraf telegraf:alpine; sleep 10;
     fi
 
-  # Seed influxdb
+  # Install ansible and jq.
+  - "pip install ansible jq"
+
+  # Add ansible.cfg to pick up roles path.
+  - printf "[defaults]\nroles_path = ../" > ansible.cfg
+
+  # Seed influxdb (after pip, so influxdb will be reachable)
   - >
     if [ "$TEST" = "migration" ]; then
     ./tests/seed.sh 1m 10s "$(date -d -1hour +"%Y-%m-%d %H:%M:00")" seq+step10;
