@@ -15,6 +15,7 @@ env:
     - TEST=setup db_name=telegraf_30d rp_name=rp_30d
     - TEST=migrate db_name=test_4d rp_name=rp_4d db_name_source=test
     - TEST=compact db_name=telegraf rp_name=rp_4d
+    - TEST=recreate_cqs db_name=test_4d rp_name=rp_4d
 
 before_install:
   # Make sure everything's up to date.
@@ -38,7 +39,7 @@ install:
 
   # Seed influxdb (after pip, so influxdb will be reachable)
   - >
-    if [ "$TEST" = "migrate" ]; then
+    if [ "$TEST" = "migrate" -o "$TEST" = "recreate_cqs" ]; then
     ./tests/seed.sh 1m 10s "$(date -d -1hour +"%Y-%m-%d %H:%M:00")" seq+step10;
     fi
 
@@ -108,6 +109,17 @@ script:
     [ -n "$result3" ]
     && (echo "Compact test: pass (source is gone)"; exit 0)
     || (echo "Compact test: fail (source still exists)"; exit 1);
+    fi
+
+  - >
+    if [ "$TEST" = "recreate_cqs" ]; then
+    curl -s http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SHOW CONTINUOUS QUERIES" | jq .;
+    sed -i .bak -e 's#^\( *continuous_query: { interval: "\)1m,5s\(".*\)$#\11m,15s\2#' ./tests/vars/recreate_cqs.yml;
+    ansible-playbook -i tests/inventory tests/test.yml --connection=local --extra-vars=recreate_cqs=yes
+    | grep -q 'changed=0.*failed=0';
+    curl -s http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SHOW CONTINUOUS QUERIES" | jq .;
     fi
 
 after_script:

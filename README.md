@@ -65,7 +65,14 @@ My Settings for backfilling 9GB of data on 5 aggregation levels on a docker cont
 * `ansible_influx_databases`, 5 levels: 14d@1m, 30d@5m, 90d@15m, 1y@1h, 3y@3h (data only available for about 1 year)
 * `ansible_influx_timeout`: 600 (10 minutes)
 * influxdb.conf: `query-timeout="600s", max-select-point=300000000, max-select-series=1000000, log-queries-after="10s"`
-* backfill duration: 14d=42 minutes, 30d=38 minutes, 90d=80 minutes, 1y=120 minutes, 3y=170 minutes, +42 minutes switch source RP to 7d (compact)
+* backfill duration: 
+  * 14 days :  42 minutes
+  * 30 days :  38 minutes
+  * 90 days :  80 minutes
+  *  1 year : 120 minutes
+  *  3 years: 170 minutes
+  * compact7d: 42 minutes (switch source RP to 7d (compact))
+  * **total**: 492 m ~8.5 hours
   * Series dropped from ~28k to 4k after compaction of source (9.6GB to 400MB)
   * `docker_container_blkio` takes the longest, maybe because of my multi-element where clause "/^(a|b|c|...)$/" and tons of generated container_names in the DB...
   * `influxdb_shard` had many data-points (had to increase influxdb.conf setting)
@@ -82,6 +89,11 @@ Use Cases
 History
 =======
 
+Future Version:
+* [ ] refactor/cleanup variables + introduce "mode" = setup, migrate, compact with separate task files
+* [ ] add changed_when conditions
+* [ ] add RP shard duration option
+
 Version 0.3: Complete incl. automatic compaction, tests and good examples.
 
 * [x] multiple/full examples -> see examples/
@@ -92,9 +104,6 @@ Version 0.3: Complete incl. automatic compaction, tests and good examples.
 * [x] howto switch retention policy (cleanup after all is setup)
    * [x] Case: copy from "autogen", no CQ, drop source after backfill + set default RP -> see test
 * [ ] shift RPs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds : use time(1m,1s) for offset!
-* [ ] add RP shard duration option
-* [ ] refactor/cleanup variables + introduce "mode" = setup, migrate, compact with separate task files
-* [ ] add changed_when conditions
 
 Version 0.2: Fully working and tested. No deleting of data. Stats + CQ update.
 
