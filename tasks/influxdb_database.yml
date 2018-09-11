@@ -88,11 +88,13 @@
         'time('+ifx_db.backfill.interval+')' if ifx_db.backfill is defined and ifx_db.backfill.interval is defined
           and ifx_db.backfill.interval != '*' else '*'
       }}"
+    ifx_cq_offset: "{{ifx_db.continuous_query.offset|default(0)}}"
     ifx_cq_resample: "{{'RESAMPLE ' if ifx_db.continuous_query.resample is defined else ''}}"
     ifx_cq_resample_every: "{{'EVERY '+ifx_db.continuous_query.resample.every
       if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.every is defined else ''}}"
     ifx_cq_resample_for: "{{'FOR '+ifx_db.continuous_query.resample.for if ifx_db.continuous_query.resample is defined
       and ifx_db.continuous_query.resample.for is defined else ''}}"
+    ifx_cq_recreate: recreate_cqs == 'yes'
     ifx_backfill: "{{ifx_db.backfill|default(false)}}"
     ifx_backfill_stats: "{{ifx_db.backfill.stats|default(false) if ifx_db.backfill is defined else false}}"
     ifx_backfill_force: "{{ifx_db.backfill.force|default(false) if ifx_db.backfill is defined else false}}"
@@ -194,7 +196,7 @@
   with_items: "{{ifx_db.measurements|sort}}"
   loop_control: { loop_var: mm_item }
   when: ifx_db.measurements is defined and ifx_source_exists
-    and (recreate_cqs == 'yes' or ansible_influx_db_create is changed or mm_item not in ifx_mms or ifx_backfill_force)
+    and (ifx_cq_recreate or ansible_influx_db_create is changed or mm_item not in ifx_mms or ifx_backfill_force)
 
 - name: '{{db_prefix}} Backfill again since start (close gap)'
   uri:

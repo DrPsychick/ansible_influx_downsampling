@@ -19,6 +19,7 @@
     cq_where: "{{'WHERE '+ifx_mm.where if ifx_mm.where is defined else ifx_cq_where}}"
     cq_interval: "{{'time('+ifx_mm.interval+')' if ifx_mm.interval is defined and ifx_mm.ifx_mm != '*' else
         ifx_mm.interval if ifx_mm.interval is defined and ifx_mm.interval == '*' else ifx_cq_interval}}"
+    cq_offset: "{{','+(cq_counter|int*ifx_cq_offset|int)+'s'|string if ifx_cq_offset|int != 0 else ''}}"
     cq_resample: "{{'RESAMPLE' if ifx_mm.every is defined or ifx_mm.for is defined else ifx_cq_resample}}"
     cq_resample_every: "{{'EVERY '+ifx_mm.every if ifx_mm.every is defined else ifx_cq_resample_every}}"
     cq_resample_for: "{{'FOR '+ifx_mm.for if ifx_mm.for is defined else ifx_cq_resample_for}}"
@@ -32,6 +33,12 @@
 
 #- debug: msg="base {{ifx_mm.every|default(ifx_cq_resample_every)|regex_replace('EVERY ([0-9]*)[smdw]','\\1')}}"
 #- debug: msg="base({{cq_counter}}) {{cq_resample_every}}{{cq_resample_jitter}}s"
+
+- name: '{{mm_prefix}} Dependent variables'
+  set_fact:
+    cq_interval2: "{{'time('+cq_interval+cq_offset+')' if cq_interval != '*' else cq_interval}}"
+
+- debug: var=cq_interval2
 
 - name: '{{mm_prefix}} Get fields from SOURCE'
   uri:
@@ -131,7 +138,7 @@
     url: "{{ansible_influx_url}}/query"
     method: POST
     body: 'q=DROP CONTINUOUS QUERY "{{cq_name}}" ON "{{ifx_db.name}}"'
-  when: ifx_db.source is defined and not ifx_source_drop and cq_name in ifx_cqs
+  when: ifx_db.source is defined and not ifx_source_drop and (cq_name in ifx_cqs or ifx_cq_recreate)
 
 - name: '{{mm_prefix}} Creating continuous query {{cq_name}}'
   uri:
