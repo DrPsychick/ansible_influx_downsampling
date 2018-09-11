@@ -19,7 +19,10 @@ Honestly the two use cases are not much different. The biggest difference is the
 Demo
 ----
 
-![Watch the demo](examples/ansible_influx_downsampling-demo.gif "Watch the demo")
+![Watch the demo](examples/grafana-demo.gif "Watch the demo")
+
+This requires to setup a "database" variable, like so:
+![Setup database variable](examples/grafana-database-variable.png "Database variable")
 
 
 Preparation
