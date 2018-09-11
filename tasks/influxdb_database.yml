@@ -34,6 +34,7 @@
 # for mode=compact
 # source 
 # + backfill+interval
+# RP.default must be true when source.drop_after_backfill is true
 
 - name: "Assert 'interval' must be defined when 'measurements' are defined"
   fail:
@@ -94,6 +95,7 @@
       and ifx_db.continuous_query.resample.for is defined else ''}}"
     ifx_backfill: "{{ifx_db.backfill|default(false)}}"
     ifx_backfill_stats: "{{ifx_db.backfill.stats|default(false) if ifx_db.backfill is defined else false}}"
+    ifx_backfill_force: "{{ifx_db.backfill.force|default(false) if ifx_db.backfill is defined else false}}"
     ifx_source_drop: "{{ifx_db.source.drop_after_backfill|default(false) if ifx_db.source is defined else false}}"
     # when retention_policy.default=true, unless drop after backfill
     ifx_rp_default: "{{'DEFAULT' if 
@@ -192,7 +194,7 @@
   with_items: "{{ifx_db.measurements|sort}}"
   loop_control: { loop_var: mm_item }
   when: ifx_db.measurements is defined and ifx_source_exists
-    and (recreate_cqs == 'yes' or ansible_influx_db_create is changed or mm_item not in ifx_mms)
+    and (recreate_cqs == 'yes' or ansible_influx_db_create is changed or mm_item not in ifx_mms or ifx_backfill_force)
 
 - name: '{{db_prefix}} Backfill again since start (close gap)'
   uri:
@@ -204,9 +206,10 @@
       WHERE time >= {{ifx_backfill_start}}000000000
       GROUP BY *
     return_content: yes
-  when: ifx_source_drop and ifx_source_exists
   register: ansible_influx_bf_closegap
+  when: ifx_source_drop and ifx_source_exists
 
+# DID not work :(
 - name: '{{db_prefix}} Get backfill points written'
   set_fact:
     db_backfill_closegap: "{{ansible_influx_bf_closegap.json.results
