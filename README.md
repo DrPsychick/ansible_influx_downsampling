@@ -19,7 +19,7 @@ Honestly the two use cases are not much different. The biggest difference is the
 Demo
 ----
 
-[![Watch the demo](examples/ansible_influx_downsampling-demo.png)](examples/ansible_influx_downsampling-demo.mp4)
+![Watch the demo](examples/ansible_influx_downsampling-demo.gif "Watch the demo")
 
 
 Preparation
