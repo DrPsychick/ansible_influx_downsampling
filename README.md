@@ -31,9 +31,9 @@ Setup
 
 Easiest setup is create a role in your own repository and adding this:
 * Decide on the name of the setup, let's call the role "influx-setup" and the setup "frank"
-* *hint* you can have any number of setup configured in this role. You just always have to load first **your** role (defining the setup) and then **DrPsychick.ansible_influx_downsampling** for each setup.
+* *hint* you can have any number of setups configured in this role. You just always have to load first **your** role (defining the setup) and then **DrPsychick.ansible_influx_downsampling** for each setup.
 
-`tasks/main.yml`
+`roles/influx-setup/tasks/main.yml`
 ```---
 
 - name: "Include definition from influxdb_{{vars_name}}.yml"
@@ -41,10 +41,11 @@ Easiest setup is create a role in your own repository and adding this:
     when: vars_name is defined
 ```
 
-`vars/influxdb_frank.yml`
+`roles/influx-setup/vars/influxdb_frank.yml`
 --> take one from the examples directory as a base for your own: [examples/](examples/)
 
 Now in your playbook, include both roles:
+`influx-setup.yml`
 ```
 - name: InfluxDB 
   hosts: localhost
@@ -64,7 +65,11 @@ If you enable **backfill**:
 My Settings for backfilling 9GB of data on 5 aggregation levels on a docker container with 3GB of RAM (no CPU limit for backfilling)
 * `ansible_influx_databases`, 5 levels: 14d@1m, 30d@5m, 90d@15m, 1y@1h, 3y@3h (data only available for about 1 year)
 * `ansible_influx_timeout`: 600 (10 minutes)
-* influxdb.conf: `query-timeout="600s", max-select-point=300000000, max-select-series=1000000, log-queries-after="10s"`
+* influxdb.conf: 
+  * `query-timeout="600s"`
+  * `max-select-point=300000000`
+  * `max-select-series=1000000`
+  * `log-queries-after="10s"`
 * backfill duration: 
   * 14 days :  42 minutes
   * 30 days :  38 minutes
@@ -73,9 +78,11 @@ My Settings for backfilling 9GB of data on 5 aggregation levels on a docker cont
   *  3 years: 170 minutes
   * compact7d: 42 minutes (switch source RP to 7d (compact))
   * **total**: 492 m ~8.5 hours
+* Result
   * Series dropped from ~28k to 4k after compaction of source (9.6GB to 400MB)
   * `docker_container_blkio` takes the longest, maybe because of my multi-element where clause "/^(a|b|c|...)$/" and tons of generated container_names in the DB...
   * `influxdb_shard` had many data-points (had to increase influxdb.conf setting)
+  * A small gap between backfilling and retention policy switch during compact
 
 My full setup can be found in [examples/full-5level-backfill-compact/](examples/full-5level-backfill-compact/)
 
@@ -93,6 +100,7 @@ Future Version:
 * [ ] refactor/cleanup variables + introduce "mode" = setup, migrate, compact with separate task files
 * [ ] add changed_when conditions
 * [ ] add RP shard duration option
+* [ ] backfill gap twice or until it is below x=1 minute (to keep gap as small as possible)
 
 Version 0.3: Complete incl. automatic compaction, tests and good examples.
 

@@ -232,12 +232,13 @@ ansible_influx_databases:
     backfill: { step: 1 }
     measurements: "{{my_windows_mms}}"
 # last step: set retention policy as default (evict downsampled data)
+# only enable once you are sure to evict old data (have a backup!)
   #level_last:
     #name: "telegraf"
     #retention_policy: { amount: "7", unit: "d", default: true }
     #source: { name: "telegraf", rp_name: "autogen", drop_after_backfill: yes }
     #backfill: { interval: "*", step: 1 }
-    #measurements: { my_docker_mms | combine(my_docker_mms) | combine(my_influx_mms) | combine(my_windows_mms) }
+    #measurements: { my_default_mms | combine(my_docker_mms) | combine(my_influx_mms) | combine(my_windows_mms) }
 
 # overwrite default queries
 my_ansible_influx_queries:
