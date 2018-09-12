@@ -71,8 +71,6 @@ script:
   - >
     if [ "$TEST" = "setup" ]; then
     sleep 10;
-    docker logs influxdb | tail;
-    docker logs telegraf | tail;
     curl http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m" | jq .;
     result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode 
