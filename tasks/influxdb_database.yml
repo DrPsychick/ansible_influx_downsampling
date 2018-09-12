@@ -162,7 +162,8 @@
 - name: '{{db_prefix}} Set dependent facts'
   set_fact:
     # assume default exists when referencing default!
-    ifx_source_exists: "{{ifx_db.source.rp_name|default(true) in ifx_source_rps if ifx_db.source is defined else false}}"
+    ifx_source_exists: "{{ifx_db.source.rp_name in ifx_source_rps 
+      if ifx_db.source is defined and ifx_source_rp_name != '' else false}}"
     # set empty groupby if interval = * (to avoid group by *, *)
     ifx_cq_groupby: "{{[] if ifx_cq_interval == '*' else ifx_cq_groupby}}"
     # register start time of backfilling
