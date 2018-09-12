@@ -132,6 +132,10 @@
   debug: msg="Total data points written = {{mm_backfill_result}}"
   when: mm_backfill and ansible_influx_mm_backfill is changed
 
+# TODO: fix name time(1m,1s) -> 'cq_cpu_1m,1s'
+# TODO: this only works if CQ exists, to replace/update we need to find and drop existing one!
+# a) old + new setting (config)
+# b) find old by name regex 'cq_cpu_*'
 - name: '{{mm_prefix}} Drop continuous query {{cq_name}}'
   uri:
     url: "{{ansible_influx_url}}/query"

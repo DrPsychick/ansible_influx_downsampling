@@ -127,6 +127,11 @@ after_script:
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW RETENTION POLICIES";
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW MEASUREMENTS";
   - >
+    if [ "$TEST" = "setup" ]; then
+    curl http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SELECT usage_user FROM $db_name.$rp_name.cpu" | jq .results[0].series;
+    fi
+  - >
     if [ "$TEST" = "migrate" ]; then
     curl http://localhost:8086/query?db=$db_name_source --data-urlencode 
     "q=SELECT * FROM $db_name_source.autogen.test" | jq .results[0].series[0];

@@ -118,6 +118,7 @@ Version 0.3: Complete incl. automatic compaction, tests and good examples.
    * [x] setup with 2 levels and CQ
    * [ ] recreate CQs
    * [x] CQs on empty (default) RP of source (sourcedb..measurement)
+   * [ ] Merge recreate with migrate TEST, fix recreate CQs!
 * [x] howto switch retention policy (cleanup after all is setup)
    * [x] Case: copy from "autogen", no CQ, drop source after backfill + set default RP -> see test
 * [ ] shift RPs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds : use time(1m,1s) for offset!
