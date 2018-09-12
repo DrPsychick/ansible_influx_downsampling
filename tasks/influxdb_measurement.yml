@@ -8,7 +8,7 @@
 - name: '{{ifx_db.name}}/{{measurement}} - Set defaults'
   set_fact:
     mm_prefix: "{{ifx_db.name}}/{{measurement}} -"
-    source_mm: "{{'\"'+ifx_db.source.name+'\".\"'+ifx_db.source.rp_name+'\".\"'+measurement+'\"'
+    source_mm: "{{'\"'+ifx_db.source.name+'\".\"'+ifx_source_rp_name+'\".\"'+measurement+'\"'
       if ifx_db.source is defined else ''}}"
     target_mm: '"{{ifx_db.name}}"."{{ifx_rp_name}}"."{{measurement}}"'
     cq_select: "{{ifx_mm.select if ifx_mm.select is defined else ansible_influx_queries[measurement]}}"
@@ -46,7 +46,6 @@
     method: POST
     body: "q=SHOW FIELD KEYS FROM {{source_mm}}"
     return_content: yes
-  #uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SELECT fieldKey FROM {{ifx_db.source.name}}.{{ifx_db.source.rp_name}}._fieldKeys WHERE _name = '{{measurement}}'"
   register: ansible_influx_mm_fields
   when: ifx_db.source is defined
 

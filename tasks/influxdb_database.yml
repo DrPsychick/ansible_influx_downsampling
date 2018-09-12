@@ -30,6 +30,7 @@
 # source 
 # + cq+interval
 # + backfill[+interval]
+# source RP name can be empty = default -> check for a default RP!
 
 # for mode=compact
 # source 
@@ -76,6 +77,7 @@
     db_prefix: "{{ifx_db.name}} -"
     ifx_rp_name: "{{ifx_db.retention_policy.name if ifx_db.retention_policy.name is defined 
       else 'rp_'+ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}}"
+    ifx_source_rp_name: "{{ifx_db.source.rp_name|default('') if ifx_db.source is defined else ''}}"
     ifx_rp_duration: "{{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit
       if ifx_db.retention_policy.amount is defined and ifx_db.retention_policy.unit is defined
       else '0s'}}"
@@ -94,7 +96,7 @@
       if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.every is defined else ''}}"
     ifx_cq_resample_for: "{{'FOR '+ifx_db.continuous_query.resample.for if ifx_db.continuous_query.resample is defined
       and ifx_db.continuous_query.resample.for is defined else ''}}"
-    ifx_cq_recreate: recreate_cqs == 'yes'
+    ifx_cq_recreate: "{{recreate_cqs == 'yes'}}"
     ifx_backfill: "{{ifx_db.backfill|default(false)}}"
     ifx_backfill_stats: "{{ifx_db.backfill.stats|default(false) if ifx_db.backfill is defined else false}}"
     ifx_backfill_force: "{{ifx_db.backfill.force|default(false) if ifx_db.backfill is defined else false}}"
@@ -159,14 +161,15 @@
 
 - name: '{{db_prefix}} Set dependent facts'
   set_fact:
-    ifx_source_exists: "{{ifx_db.source.rp_name in ifx_source_rps if ifx_db.source is defined else false}}"
+    # assume default exists when referencing default!
+    ifx_source_exists: "{{ifx_db.source.rp_name|default(true) in ifx_source_rps if ifx_db.source is defined else false}}"
     # set empty groupby if interval = * (to avoid group by *, *)
     ifx_cq_groupby: "{{[] if ifx_cq_interval == '*' else ifx_cq_groupby}}"
     # register start time of backfilling
     ifx_backfill_start: "{{lookup('pipe','date +%s')}}"
 
 - name: '{{db_prefix}} Source must exist for compact'
-  debug: msg="Source '{{ifx_db.source.name}}.{{ifx_db.source.rp_name}}' must exist, will skip measurements and backfill"
+  debug: msg="Source '{{ifx_db.source.name}}.{{ifx_source_rp_name}}' must exist, will skip measurements and backfill"
   when: ifx_source_drop and not ifx_source_exists
 
 - name: '{{db_prefix}} Print SOURCE  measurements'
@@ -198,17 +201,37 @@
   when: ifx_db.measurements is defined and ifx_source_exists
     and (ifx_cq_recreate or ansible_influx_db_create is changed or mm_item not in ifx_mms or ifx_backfill_force)
 
-- name: '{{db_prefix}} Backfill again since start (close gap)'
+- pause:
+    prompt: "I will now backfill gap and switch default RP, Continue?" 
+  when: ifx_source_drop and ifx_source_exists
+
+# run twice -> sum up results
+- set_fact:
+    ifx_backfill_start2: "{{lookup('pipe','date +%s')}}"
+- name: '{{db_prefix}} Backfill again (1) since start (close gap)'
   uri:
     url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
     method: POST
     body: >
       q=SELECT * INTO "{{ifx_db.name}}"."{{ifx_rp_name}}".:MEASUREMENT
-      FROM "{{ifx_db.source.name}}"."{{ifx_db.source.rp_name}}"./^({{ifx_db.measurements|join('|')}})$/
-      WHERE time >= {{ifx_backfill_start}}000000000
+      FROM "{{ifx_db.source.name}}"."{{ifx_source_rp_name}}"./^({{ifx_db.measurements|join('|')}})$/
+      WHERE time >= {{ifx_backfill_start}}000ms
       GROUP BY *
     return_content: yes
   register: ansible_influx_bf_closegap
+  when: ifx_source_drop and ifx_source_exists
+
+- name: '{{db_prefix}} Backfill again (2) since start (close gap)'
+  uri:
+    url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
+    method: POST
+    body: >
+      q=SELECT * INTO "{{ifx_db.name}}"."{{ifx_rp_name}}".:MEASUREMENT
+      FROM "{{ifx_db.source.name}}"."{{ifx_source_rp_name}}"./^({{ifx_db.measurements|join('|')}})$/
+      WHERE time >= {{ifx_backfill_start2}}000ms
+      GROUP BY *
+    return_content: yes
+  register: ansible_influx_bf_closegap2
   when: ifx_source_drop and ifx_source_exists
 
 # DID not work :(
@@ -217,11 +240,19 @@
     db_backfill_closegap: "{{ansible_influx_bf_closegap.json.results
       |selectattr('series', 'defined')|map(attribute='series')|flatten
       |map(attribute='values')|flatten|select('number')|map('int')|sum(start=0)}}"
-  when: ifx_source_drop and ifx_source_exists
+    db_backfill_closegap2: "{{ansible_influx_bf_closegap2.json.results
+      |selectattr('series', 'defined')|map(attribute='series')|flatten
+      |map(attribute='values')|flatten|select('number')|map('int')|sum(start=0)}}"
+  when: ansible_influx_bf_closegap is not skipped
+
+- debug: msg="{{ansible_influx_bf_closegap.json.results
+      |selectattr('series', 'defined')|map(attribute='series')|flatten
+      |map(attribute='values')|flatten}}"
+  when: ansible_influx_bf_closegap is not skipped
 
 - name: '{{db_prefix}} Backfill again points written'
-  debug: msg="Total data points written = {{db_backfill_closegap}}"
-  when: ifx_source_drop and ifx_source_exists
+  debug: msg="Total data points written = {{db_backfill_closegap+db_backfill_closegap2}}"
+  when: ansible_influx_bf_closegap is not skipped
 
 - name: '{{db_prefix}} Make RP the default'
   uri:
@@ -246,6 +277,7 @@
 - name: '{{db_prefix}} Total duration'
   debug: msg="Total duration = {{(lookup('pipe','date +%s')|int - ifx_backfill_start|int)/60}} minutes"
 
+# TODO: error in setup: cannot compact without naming old retention policy
 - name: '{{db_prefix}} Drop old RP (compact)'
   uri:
     url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
@@ -254,5 +286,5 @@
       q=DROP RETENTION POLICY "{{ifx_db.source.rp_name}}" ON "{{ifx_db.source.name}}"
     return_content: yes
   register: ansible_influx_source_drop
-  when: ifx_source_drop and ifx_source_exists
+  when: ifx_source_drop and ifx_source_exists and ifx_source_rp_name != ''
 

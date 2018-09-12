@@ -14,6 +14,6 @@ ansible_influx_databases:
   level_1:
     name: "telegraf_30d"
     retention_policy: { amount: "30", unit: "d", default: true }
-    source: { name: "telegraf", rp_name: "rp_7d" }
+    source: { name: "telegraf" }
     continuous_query: { interval: "10s" }
     measurements: { cpu }

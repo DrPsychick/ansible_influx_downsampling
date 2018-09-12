@@ -27,7 +27,8 @@ This requires to setup a "database" variable, like so:
 
 Preparation
 -----------
-As preparation you don't need much, expect knowing how exactly you want to downsample your data as you need to setup your configuration first.
+As preparation you don't need much, except knowing how exactly you want to downsample your data as you need to setup your configuration first.
+Once configured, you can run each level separately and/or repeatedly without any issue as the role only creates/adds what is missing (ok, CQs are always recreated as there is no way to alter them). This way you can iterate your way towards a final setup and add compaction as last step, once you're happy with the result.
 
 Setup
 -----
@@ -64,6 +65,10 @@ If you enable **backfill**:
 * Check the size of your data first. Depending on the amount of series in a measurement, you need to configure the time range for backfilling. A good default is "1d" - but you may not want to run 365 queries for a year...
 * Timeouts: Your InfluxDB as well as the calls in this playbook may time out! Or you may hit other limits in the influxdb.conf.
 * Stats: They will **likely** crash because they query big time ranges with lots of data. Only turn them on for small backfill jobs.
+
+If you enable **backfill and compact**:
+* After a complete run with compaction you need to check and recreate all continuous queries based on the new default RP of the source.
+* Better: specify ".." as source to always use the default (see TODOs)
 
 My Settings for backfilling 9GB of data on 5 aggregation levels on a docker container with 3GB of RAM (no CPU limit for backfilling)
 * `ansible_influx_databases`, 5 levels: 14d@1m, 30d@5m, 90d@15m, 1y@1h, 3y@3h (data only available for about 1 year)
@@ -112,6 +117,7 @@ Version 0.3: Complete incl. automatic compaction, tests and good examples.
    * [x] run backfill without CQ during operation and switch RP
    * [x] setup with 2 levels and CQ
    * [ ] recreate CQs
+   * [x] CQs on empty (default) RP of source (sourcedb..measurement)
 * [x] howto switch retention policy (cleanup after all is setup)
    * [x] Case: copy from "autogen", no CQ, drop source after backfill + set default RP -> see test
 * [ ] shift RPs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds : use time(1m,1s) for offset!
