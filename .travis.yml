@@ -129,7 +129,7 @@ after_script:
   - >
     if [ "$TEST" = "setup" ]; then
     curl http://localhost:8086/query?db=$db_name --data-urlencode
-    "q=SELECT usage_user FROM $db_name.$rp_name.cpu" | jq .results[0].series;
+    "q=SELECT usage_user FROM $db_name.$rp_name.cpu" | jq .
     fi
   - >
     if [ "$TEST" = "migrate" ]; then
