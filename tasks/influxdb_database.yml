@@ -29,8 +29,10 @@
     ifx_rp_enabled: "{{ifx_db.retention_policy is defined}}" # always true (mandatory)
     ifx_rp: "{{ifx_db.retention_policy}}"
     ifx_rp_name_duration: "{{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit if ifx_db.retention_policy.amount is defined else 'forever'}}"
-    ifx_rp_amount: "{{ifx_db.retention_policy.amount|select('defined')}}"
-    ifx_rp_unit: "{{ifx_db.retention_policy.unit|select('defined')}}"
+    ifx_rp_amount_defined: "{{ifx_db.retention_policy.amount is defined}}"
+    ifx_rp_amount: "{{ifx_db.retention_policy.amount|default(0)}}"
+    ifx_rp_unit_defined: "{{ifx_db.retention_policy.unit is defined}}"
+    ifx_rp_unit: "{{ifx_db.retention_policy.unit|default('s')}}"
     ifx_rp_default: "{{ifx_db.retention_policy.default|default(false)}}"
 
     ifx_bf_enabled: "{{ifx_db.backfill is defined}}"
@@ -108,7 +110,7 @@
 - name: "Assert 'retention_policy' name is defined"
   fail:
     msg: "DB attribute 'retention_policy' with 'amount'+'unit' OR 'name' must be defined!"
-  when: not ((ifx_rp_amount is defined and ifx_rp_unit is defined) or ifx_rp.name is defined)
+  when: not ((ifx_rp_amount_defined and ifx_rp_unit_defined) or ifx_rp.name is defined)
 
 - name: "Assert 'retention_policy.default' must be TRUE when 'source.drop_after_backfill' is TRUE"
   fail:
