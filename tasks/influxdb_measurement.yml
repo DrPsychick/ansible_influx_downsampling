@@ -99,10 +99,10 @@
     body: >
       q={{bf_select}} INTO {{target_mm}} FROM {{source_mm}}
       WHERE time >= now() - {{seq}}{{ifx_rp_unit}}
-      AND time < now() - {{seq|int - ifx_bf.step|int}}{{ifx_rp_unit}}
+      AND time < now() - {{seq|int - ifx_bf_step|int}}{{ifx_rp_unit}}
       {{bf_where}} GROUP BY {{bf_interval_string}}{{bf_groupby_string}}
     return_content: yes
-  with_sequence: start={{ifx_rp_amount|int}} end={{ifx_bf.step|int}} stride=-{{ifx_bf.step|int}}
+  with_sequence: start={{ifx_rp_amount|int}} end={{ifx_bf_step|int}} stride=-{{ifx_bf_step|int}}
   loop_control: { loop_var: seq }
   register: ansible_influx_mm_backfill
   when: mm_backfill and ifx_source_exists and (measurement not in ifx_mms or ifx_bf_force)
