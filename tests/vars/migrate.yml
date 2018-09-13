@@ -15,7 +15,7 @@ ansible_influx_databases:
     continuous_query:
       interval: "1m"
       where: "1 = 1"
-      resample: { every: "10s", for: "1m" }
+      resample: { every: "1m", for: "2m" }
     backfill:
       stats: true
       step: 2
