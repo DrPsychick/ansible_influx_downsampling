@@ -149,7 +149,7 @@
     url: "{{ansible_influx_url}}/query"
     method: POST
     body: 'q=DROP CONTINUOUS QUERY "{{drop_cq_name}}" ON "{{ifx_db.name}}"'
-  when: ifx_source_defined and not ifx_source_drop and cq_name in ifx_cqs
+  when: ifx_source_defined and not ifx_source_drop and drop_cq_name in ifx_cqs
 
 - name: '{{mm_prefix}} Creating continuous query {{cq_name}}'
   uri:
