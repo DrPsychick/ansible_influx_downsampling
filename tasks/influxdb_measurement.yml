@@ -3,7 +3,8 @@
 - name: '{{ifx_db.name}}/{{measurement}} - Set measurement variable'
   set_fact:
     ifx_mm: "{{ifx_db.measurements[measurement]}}"
-    cq_counter: "{{cq_counter|default(-1)|int + 1}}" # 0, 1, 2, 3, 4, ...
+    cq_counter: "{{cq_counter|default(0)|int + 1}}" # 1, 2, 3, 4, ...
+    cq_old_match: "{{ifx_cqs|select('match', 'cq_' + measurement + '_.*')|list}}"
 
 - name: '{{ifx_db.name}}/{{measurement}} - Set simple defaults'
   set_fact:
@@ -21,6 +22,7 @@
     cq_resample: "{{'RESAMPLE' if ifx_mm.every is defined or ifx_mm.for is defined else ifx_cq_resample}}"
     cq_resample_every: "{{'EVERY '+ifx_mm.every if ifx_mm.every is defined else ifx_cq_resample_every}}"
     cq_resample_for: "{{'FOR '+ifx_mm.for if ifx_mm.for is defined else ifx_cq_resample_for}}"
+    cq_old_match: "{{cq_old_match|first if cq_old_match|length > 0 else ''}}"
     mm_count_source: 0
     mm_backfill: "{{ifx_mm.backfill if ifx_mm.backfill is defined else ifx_bf}}"
     mm_backfill_result: 0
@@ -37,6 +39,8 @@
   set_fact:
     bf_interval_string: "{{'time('+bf_interval+')' if bf_interval != '*' else bf_interval}}"
     cq_interval_string: "{{'time(' + (ifx_mm.interval+mm_offset if ifx_mm.interval is defined else ifx_cq_interval_name+cq_offset) + ')'}}"
+    drop_cq_name: "{{cq_name if cq_name in ifx_cqs else
+      cq_old_match if cq_old_match != '' else cq_name}}"
 
 - name: '{{mm_prefix}} Run mode "{{ifx_mode}}" on "{{ifx_db.name}}/{{measurement}}" with CQ interval "{{cq_interval_string}}"'
   debug: var=cq_interval_string
@@ -64,15 +68,16 @@
       WHERE time >= now() - {{ifx_rp_duration}}
     return_content: yes
   register: ansible_influx_mm_count
-  when: ifx_bf_enabled and measurement not in ifx_mms and ifx_source_defined
-    and ifx_bf_stats
+  when: ifx_bf_enabled and measurement not in ifx_mms and ifx_source_defined and ifx_bf_stats
 
-- name: '{{mm_prefix}} Cacluate SOURCE measurement count'
+- name: '{{mm_prefix}} Calcuate SOURCE measurement count'
   set_fact:
     mm_count_source: "{{ansible_influx_mm_count.json.results
       |selectattr('series','defined')|map(attribute='series')|flatten
       |map(attribute='values')|flatten|select('number')|map('int')|max}}"
-  when: ansible_influx_mm_count.json is defined and ansible_influx_mm_count.json.results is defined
+  when: ansible_influx_mm_count is succeeded 
+    and ansible_influx_mm_count.json is defined 
+    and ansible_influx_mm_count.json.results[0].series is defined
 
 - name: '{{mm_prefix}} Count on SOURCE'
   debug: msg="Max count on SOURCE {{measurement}} = {{mm_count_source}}"
@@ -136,16 +141,15 @@
   debug: msg="Total data points written = {{mm_backfill_result}}"
   when: ifx_bf_enabled and ansible_influx_mm_backfill is changed
 
-# TODO: fix name time(1m,1s) -> 'cq_cpu_1m,1s'
-# TODO: this only works if CQ exists, to replace/update we need to find and drop existing one!
-# a) old + new setting (config)
-# b) find old by name regex 'cq_cpu_*'
-- name: '{{mm_prefix}} Drop continuous query {{cq_name}}'
+- debug: msg="{{'cq_' + measurement + '_.*'}} in {{ifx_cqs}} = {{cq_old_match}} -> DROP {{drop_cq_name}}"
+
+# always drop and recreate CQ (we cannot update it) - IFF CQ is enabled
+- name: '{{mm_prefix}} Drop continuous query {{drop_cq_name}}'
   uri:
     url: "{{ansible_influx_url}}/query"
     method: POST
-    body: 'q=DROP CONTINUOUS QUERY "{{cq_name}}" ON "{{ifx_db.name}}"'
-  when: ifx_source_defined and not ifx_source_drop and (cq_name in ifx_cqs or ifx_cq_recreate)
+    body: 'q=DROP CONTINUOUS QUERY "{{drop_cq_name}}" ON "{{ifx_db.name}}"'
+  when: ifx_source_defined and not ifx_source_drop and cq_name in ifx_cqs
 
 - name: '{{mm_prefix}} Creating continuous query {{cq_name}}'
   uri:
