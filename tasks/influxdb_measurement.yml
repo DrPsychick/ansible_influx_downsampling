@@ -64,7 +64,7 @@
       WHERE time >= now() - {{ifx_rp_duration}}
     return_content: yes
   register: ansible_influx_mm_count
-  when: mm_backfill and measurement not in ifx_mms and ifx_source_defined
+  when: ifx_bf_enabled and measurement not in ifx_mms and ifx_source_defined
     and ifx_bf_stats
 
 - name: '{{mm_prefix}} Cacluate SOURCE measurement count'
@@ -108,7 +108,7 @@
   with_sequence: start={{ifx_rp_amount|int}} end={{ifx_bf_step|int}} stride=-{{ifx_bf_step|int}}
   loop_control: { loop_var: seq }
   register: ansible_influx_mm_backfill
-  when: mm_backfill and ifx_source_exists and (measurement not in ifx_mms or ifx_bf_force)
+  when: ifx_bf_enabled and ifx_source_exists and (measurement not in ifx_mms or ifx_bf_force)
   changed_when: ansible_influx_mm_backfill.json is defined and ansible_influx_mm_backfill.json.results is defined
     and ansible_influx_mm_backfill.json.results[0].statement_id == 0
   failed_when: ansible_influx_mm_backfill.rc|default(0) == 1 or (
@@ -130,11 +130,11 @@
       |map(attribute='json.results')|flatten
       |selectattr('series', 'defined')|map(attribute='series')|flatten
       |map(attribute='values')|flatten |select('number')|map('int')|sum(start=0)}}"
-  when: mm_backfill and ansible_influx_mm_backfill is changed
+  when: ifx_bf_enabled and ansible_influx_mm_backfill is changed
 
 - name: '{{mm_prefix}} Backfill results'
   debug: msg="Total data points written = {{mm_backfill_result}}"
-  when: mm_backfill and ansible_influx_mm_backfill is changed
+  when: ifx_bf_enabled and ansible_influx_mm_backfill is changed
 
 # TODO: fix name time(1m,1s) -> 'cq_cpu_1m,1s'
 # TODO: this only works if CQ exists, to replace/update we need to find and drop existing one!
@@ -167,7 +167,7 @@
     body: "q=SELECT COUNT(*) FROM {{target_mm}}"
     return_content: yes
   register: ansible_influx_mm_count
-  when: mm_backfill and ifx_source_defined and mm_backfill_result|int > 0
+  when: ifx_bf_enabled and ifx_source_defined and mm_backfill_result|int > 0
 
 - name: '{{mm_prefix}} Calcuate TARGET measurement count'
   set_fact:
