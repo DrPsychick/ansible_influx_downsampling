@@ -94,9 +94,9 @@ script:
     "q=SHOW CONTINUOUS QUERIES" | jq . | grep 'cq_cpu_';
     sed -i -e 's#^\( *interval: "\)1m\(".*\)$#\130s\2#' -e 's#^\(.*every: "\)1m\(".*\)$#\130s\2#' ./tests/vars/migrate.yml;
     ansible-playbook -i tests/inventory tests/test.yml --connection=local --extra-vars=recreate_cqs=yes 2>&1
-    | grep -q -e 'localhost.*changed' -e 'Drop continuous';
+    | grep -A1 -e 'localhost.*changed' -e 'Drop continuous';
     result=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode
-    "q=SHOW CONTINUOUS QUERIES" | jq . | grep 'cq_cpu_');
+    "q=SHOW CONTINUOUS QUERIES" | jq .);
     echo "$result";
     echo "$(echo "$result" | grep --color=auto "_30s")";
     fi
