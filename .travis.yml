@@ -98,7 +98,10 @@ script:
     result=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SHOW CONTINUOUS QUERIES" | jq .);
     echo "$result";
-    echo "$(echo "$result" | grep --color=auto "_30s")";
+    result1="$(echo "$result" | grep "_30s")";
+    result2="$(echo "$result" | grep "_1m")";
+    [ -n "$result1" ] && (echo "CQ update test: pass (new CQ exists) $result1"; exit 0);
+    [ -z "$result2" ] && (echo "CQ update test: pass (old CQ is gone) $result2"; exit 0);
     fi
 
   # TEST = compact
