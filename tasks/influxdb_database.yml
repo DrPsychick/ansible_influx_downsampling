@@ -3,115 +3,133 @@
 - name: '{{ansible_influx_databases[database].name}} - Set database variable'
   set_fact:
     ifx_db: "{{ansible_influx_databases[database]
-      |combine({ 'continuous_query': '' } if ansible_influx_databases[database].continuous_query is not defined
+      |combine({ 'continuous_query': {} } if ansible_influx_databases[database].continuous_query is not defined
       else { 'continuous_query': ansible_influx_databases[database].continuous_query })}}"
 
-# some assertions - move to separate file?
+# basic variables to ease conditions and other variable definitions
+- name: '{{ifx_db.name}} - Set simple defaults'
+  set_fact:
+    ifx_source_defined: "{{ifx_db.source is defined and ifx_db.source.name is defined}}"
+    ifx_src: "{{ifx_db.source|default({})}}"
+    ifx_source_rp_defined: "{{ifx_db.source is defined and ifx_db.source.rp_name is defined}}"
+    ifx_source_drop: "{{ifx_db.source.drop_after_backfill|default(false) if ifx_db.source is defined else false}}"
+
+    ifx_cq_enabled: "{{ifx_db.continuous_query.interval is defined}}"
+    ifx_cq: "{{ifx_db.continuous_query}}"
+    ifx_cq_resample_defined: "{{ifx_db.continuous_query.resample is defined and (ifx_db.continuous_query.resample.every is defined or ifx_db.continuous_query.resample.for is defined)}}"
+    ifx_cq_resample_every_defined: "{{ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.every is defined}}"
+    ifx_cq_resample_for_defined: "{{ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.for is defined}}"
+    ifx_cq_where_defined: "{{ifx_db.continuous_query.where is defined}}"
+    ifx_cq_interval_name: "{{ifx_db.continuous_query.interval|default('')}}"
+    ifx_cq_offset: "{{ifx_db.continuous_query.offset|regex_replace('([0-9]*)[smdw]', '\\1') if ifx_db.continuous_query.offset is defined else ''}}"
+    ifx_cq_offset_unit: "{{ifx_db.continuous_query.offset|regex_replace('[0-9]*([smdw])', '\\1') if ifx_db.continuous_query.offset is defined else ''}}"
+    ifx_cq_groupby: "{{ifx_db.continuous_query.groupby if ifx_db.continuous_query.groupby is defined else ['*']}}"
+    ifx_cq_recreate: "{{recreate_cqs == 'yes'}}"
+
+    ifx_rp_enabled: "{{ifx_db.retention_policy is defined}}" # always true (mandatory)
+    ifx_rp: "{{ifx_db.retention_policy}}"
+    ifx_rp_name_duration: "{{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit if ifx_db.retention_policy.amount is defined else 'forever'}}"
+    ifx_rp_amount: "{{ifx_db.retention_policy.amount}}"
+    ifx_rp_unit: "{{ifx_db.retention_policy.unit}}"
+    ifx_rp_default: "{{ifx_db.retention_policy.default|default(false)}}"
+
+    ifx_bf_enabled: "{{ifx_db.backfill is defined}}"
+    ifx_backfill: "{{ifx_db.backfill|default({})}}"
+    ifx_bf: "{{ifx_db.backfill|default({})}}"
+    ifx_bf_interval_defined: "{{ifx_db.backfill is defined and ifx_db.backfill.interval is defined}}"
+    ifx_bf_step_defined: "{{ifx_db.backfill is defined and ifx_db.backfill.step is defined}}"
+    ifx_bf_step: "{{ifx_db.backfill.step|default(1) if ifx_db.backfill is defined else 1}}"
+    ifx_bf_stats: "{{ifx_db.backfill.stats|default(false) if ifx_db.backfill is defined else false}}"
+    ifx_bf_force: "{{ifx_db.backfill.force|default(false) if ifx_db.backfill is defined else false}}"
+    ifx_mm_defined: "{{ifx_db.measurements is defined}}"
+    mm_backfill_totals: []
+    ifx_mm_bf_totals: []
+    mm_downsampling_totals: []
+    ifx_mm_ds_totals: []
+    ifx_mode: ""
+
+# for mode=setup
+# NOT source OR source + cq + measurements
+- name: "Identify 'setup' mode"
+  set_fact:
+    ifx_mode: "{{'setup' if not ifx_source_defined or (ifx_source_defined and ifx_cq_enabled and ifx_mm_defined) else ifx_mode}}"
+
+# for mode=migrate
+# source + cq + measurements + backfill [+bf.interval]
+# TODO: source RP name can be empty = default -> check for a default RP!
+- name: "Identify 'migrate' mode"
+  set_fact:
+    ifx_mode: "{{'migrate' if ifx_source_defined and ifx_cq_enabled and ifx_mm_defined and ifx_bf_enabled else ifx_mode}}"
+
+# for mode=compact
+# source + backfill [+bf.interval] + NOT cq
+# TODO: RP.default must be true when source.drop_after_backfill is true
+- name: "Identify 'compact' mode"
+  set_fact:
+    ifx_mode: "{{'compact' if ifx_source_defined and ifx_bf_enabled and ifx_mm_defined and not ifx_cq_enabled else ifx_mode}}"
+
+- name: '{{ifx_db.name}} - Set dependent defaults'
+  set_fact:
+    db_prefix: "{{ifx_mode+' '+ifx_db.name}} -"
+    ifx_rp_name: "{{ifx_rp.name if ifx_rp.name is defined else 'rp_'+ifx_rp_name_duration}}"
+    ifx_rp_duration: "{{ifx_rp_name_duration if ifx_rp_name_duration != 'forever' else '0s'}}" # actual duration for RP
+
+    # CQ: time(interval+offset), name+interval, 
+    ifx_cq_where: "{{'WHERE '+ifx_cq.where if ifx_cq_where_defined else ''}}"
+    ifx_cq_resample: "{{'RESAMPLE ' if ifx_cq_resample_defined else ''}}"
+    ifx_cq_resample_every: "{{'EVERY '+ifx_cq.resample.every if ifx_cq_resample_every_defined else ''}}"
+    ifx_cq_resample_for: "{{'FOR '+ifx_cq.resample.for if ifx_cq_resample_for_defined else ''}}"
+
+    # BF: time(interval)|*, name+amount+unit - '*' only when compact?
+    ifx_bf_interval: "{{ifx_bf.interval if ifx_bf_interval_defined and ifx_bf.interval != '*' else '*'}}"
+    ifx_bf_where: "{{'AND '+ifx_cq.where if ifx_cq_where_defined else ''}}" # TODO
+    ifx_bf_groupby: "{{[] if ifx_bf_interval_defined and ifx_bf.interval == '*' else ifx_cq_groupby}}"
+
+    ifx_source_rp_name: "{{ifx_src.rp_name|default('') if ifx_source_defined else ''}}"
+    # when retention_policy.default=true, unless drop after backfill (compact mode)
+    ifx_rp_default_string: "{{'DEFAULT' if ifx_rp_default and not ifx_mode == 'compact' else ''}}"
+
+- name: '{{db_prefix}} Database definition, mode "{{ifx_mode}}" on "{{ifx_db.name}} ({{ifx_cq_recreate}})"'
+  debug: var=ifx_db
+
+### ASSERTIONS
 - name: "Assert basic DB attributes"
   fail:
     msg: "DB attribute 'name' must be defined!"
   when: ifx_db.name is not defined
 
-- name: "Assert 'retention_policy' with 'amount'+'unit' is defined"
+- name: "Assert 'source' and 'measurement' depend on each other"
   fail:
-    msg: "DB attribute 'retention_policy' with 'amount'+'unit' or 'name' must be defined!"
-  when: not (ifx_db.retention_policy is defined and (
-      (ifx_db.retention_policy.amount is defined and ifx_db.retention_policy.unit is defined)
-      or ifx_db.retention_policy.name is defined
-    ))
+    msg: "Both 'source' and 'measurement' must be defined OR none of them"
+  when: (ifx_source_defined and not ifx_mm_defined) or (not ifx_source_defined and ifx_mm_defined)
+#not (ifx_source_defined and ifx_mm_defined) and not (not ifx_source_defined and not ifx_mm_defined)
 
-# for all
-# if source or measurement -> source + measurement
+- name: "Assert 'retention_policy' name is defined"
+  fail:
+    msg: "DB attribute 'retention_policy' with 'amount'+'unit' OR 'name' must be defined!"
+  when: not ((ifx_rp_amount is defined and ifx_rp_unit is defined) or ifx_rp.name is defined)
 
-# for mode=setup
-# source + cq+interval OR nothing
+- name: "Assert 'retention_policy.default' must be TRUE when 'source.drop_after_backfill' is TRUE"
+  fail:
+    msg: "Cannot drop source without making new RP the default"
+  when: ifx_source_drop and not ifx_rp_default
 
-# for mode=migrate 
-# source 
-# + cq+interval
-# + backfill[+interval]
-# source RP name can be empty = default -> check for a default RP!
-
-# for mode=compact
-# source 
-# + backfill+interval
-# RP.default must be true when source.drop_after_backfill is true
-
-- name: "Assert 'interval' must be defined when 'measurements' are defined"
+- name: "Assert 'interval' (cq or bf) must be defined when 'measurements' are defined"
   fail:
     msg: "DB attribute 'continuous_query.interval' OR 'backfill.interval' must be defined when defining 'measurements'!"
-  when: ifx_db.measurements is defined and (
-    ifx_db.continuous_query.interval is not defined
-    and ifx_db.backfill.interval is not defined)
+  when: ifx_mm_defined and not ifx_cq_enabled and not ifx_bf_enabled
 
 - name: "Assert 'source' must be defined for backfilling or continuous queries"
   fail:
     msg: "DB attribute 'source' is required for 'backfill' or 'continuous_query'"
-  when: ifx_db.source is not defined and (
-    ifx_db.continuous_query.interval is defined
-    or (ifx_db.backfill is defined and ifx_db.backfill.interval is defined))
-
-- name: "Assert backfill settings 'step' and 'source'"
-  fail:
-    msg: "DB attribute 'backfill.step' and 'backfill.interval' require 'source'!"
-  when: ifx_db.backfill is defined and (
-    ifx_db.backfill.step is defined or ifx_db.backfill.interval is defined
-    ) and ifx_db.source is not defined
+  when: not ifx_source_defined and (ifx_cq_enabled or ifx_bf_enabled)
 
 - name: "Assert backfill RP dependency"
   fail:
     msg: "DB attribute 'backfill' requires 'retention_policy' with 'amount' + 'unit'!"
-  when: ifx_db.backfill is defined and (
-    ifx_db.retention_policy is not defined
-    or ifx_db.retention_policy.amount is not defined
-    or ifx_db.retention_policy.unit is not defined)
+  when: ifx_bf_enabled and not (ifx_rp_amount is defined and ifx_rp_unit is defined)
 
-# REFACTOR!
-# type/case/mode = compact, setup, migrate (defines which variables are required/used and which are not)
-# compact : create RP, backfill (no CQ) per measurement, backfill last Xhours, switch RP
-# setup : create RP, setup CQ per measurement
-# migrate : create RP, backfill and setup CQ per measurement
-
-- name: '{{ifx_db.name}} - Set defaults'
-  set_fact:
-    db_prefix: "{{ifx_db.name}} -"
-    ifx_rp_name: "{{ifx_db.retention_policy.name if ifx_db.retention_policy.name is defined 
-      else 'rp_'+ifx_db.retention_policy.amount+ifx_db.retention_policy.unit}}"
-    ifx_source_rp_name: "{{ifx_db.source.rp_name|default('') if ifx_db.source is defined else ''}}"
-    ifx_rp_duration: "{{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit
-      if ifx_db.retention_policy.amount is defined and ifx_db.retention_policy.unit is defined
-      else '0s'}}"
-    ifx_cq_name: "{{ifx_db.continuous_query.interval if ifx_db.continuous_query.interval is defined else 'all'}}"
-    ifx_bf_where: "{{'AND '+ifx_db.continuous_query.where if ifx_db.continuous_query.where is defined else ''}}"
-    ifx_cq_where: "{{'WHERE '+ifx_db.continuous_query.where if ifx_db.continuous_query.where is defined else ''}}"
-    ifx_cq_groupby: "{{ifx_db.continuous_query.groupby if ifx_db.continuous_query.groupby is defined else ['*']}}"
-    ifx_cq_interval: "{{'time('+ifx_db.continuous_query.interval+')'
-      if ifx_db.continuous_query is defined and ifx_db.continuous_query.interval is defined else
-        'time('+ifx_db.backfill.interval+')' if ifx_db.backfill is defined and ifx_db.backfill.interval is defined
-          and ifx_db.backfill.interval != '*' else '*'
-      }}"
-    ifx_cq_offset: "{{ifx_db.continuous_query.offset|default(0)}}"
-    ifx_cq_resample: "{{'RESAMPLE ' if ifx_db.continuous_query.resample is defined else ''}}"
-    ifx_cq_resample_every: "{{'EVERY '+ifx_db.continuous_query.resample.every
-      if ifx_db.continuous_query.resample is defined and ifx_db.continuous_query.resample.every is defined else ''}}"
-    ifx_cq_resample_for: "{{'FOR '+ifx_db.continuous_query.resample.for if ifx_db.continuous_query.resample is defined
-      and ifx_db.continuous_query.resample.for is defined else ''}}"
-    ifx_cq_recreate: "{{recreate_cqs == 'yes'}}"
-    ifx_backfill: "{{ifx_db.backfill|default(false)}}"
-    ifx_backfill_stats: "{{ifx_db.backfill.stats|default(false) if ifx_db.backfill is defined else false}}"
-    ifx_backfill_force: "{{ifx_db.backfill.force|default(false) if ifx_db.backfill is defined else false}}"
-    ifx_source_drop: "{{ifx_db.source.drop_after_backfill|default(false) if ifx_db.source is defined else false}}"
-    # when retention_policy.default=true, unless drop after backfill
-    ifx_rp_default: "{{'DEFAULT' if 
-      ifx_db.retention_policy.default|default(false)
-      and not (ifx_db.source is defined and ifx_db.source.drop_after_backfill|default(false))
-      else ''}}"
-    mm_backfill_totals: []
-    mm_downsampling_totals: []
-
-- name: '{{db_prefix}} Database definition'
-  debug: var=ifx_db
-
+### START
 - name: '{{db_prefix}} Create database'
   uri: url="{{ansible_influx_url}}/query" method=POST body="q=CREATE DATABASE {{ifx_db.name}}" return_content=yes
   when: ifx_db.name not in ifx_dbs
@@ -122,13 +140,13 @@
 - name: '{{db_prefix}} Get SOURCE retention policies'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SHOW RETENTION POLICIES" return_content=yes
   register: ansible_influx_source_rps
-  when: ifx_db.source is defined
+  when: ifx_source_defined
 
 # do not check for source/target measurements when 'compact': influxdb only shows measurements of all RPs per DB
 - name: '{{db_prefix}} Get SOURCE measurements'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.source.name}}" method=POST body="q=SHOW MEASUREMENTS" return_content=yes
   register: ansible_influx_source_mms
-  when: ifx_db.source is defined and not ifx_source_drop
+  when: ifx_source_defined and not ifx_source_drop
 
 - name: '{{db_prefix}} Get TARGET retention policies'
   uri: url="{{ansible_influx_url}}/query?db={{ifx_db.name}}" method=POST body="q=SHOW RETENTION POLICIES" return_content=yes
@@ -149,7 +167,7 @@
     ifx_source_rps: "{{ansible_influx_source_rps.json.results
       |selectattr('series','defined')|map(attribute='series')|flatten
       |selectattr('values','sequence')|map(attribute='values')|flatten
-      if ifx_db.source is defined else []}}"
+      if ifx_source_defined else []}}"
     ifx_mms: "{{ansible_influx_mms.json.results
       |selectattr('series', 'defined')|map(attribute='series')|flatten
       |rejectattr('values', 'callable')|map(attribute='values')|flatten
@@ -163,11 +181,13 @@
   set_fact:
     # assume default exists when referencing default!
     ifx_source_exists: "{{ifx_db.source.rp_name in ifx_source_rps 
-      if ifx_db.source is defined and ifx_source_rp_name != '' else false}}"
+      if ifx_source_defined and ifx_source_rp_name != '' else false}}"
     # set empty groupby if interval = * (to avoid group by *, *)
-    ifx_cq_groupby: "{{[] if ifx_cq_interval == '*' else ifx_cq_groupby}}"
     # register start time of backfilling
     ifx_backfill_start: "{{lookup('pipe','date +%s')}}"
+
+#- debug: var=ansible_influx_source_rps
+#- debug: msg="source_exists = {{ifx_db.source.rp_name}} in {{ifx_source_rps}} if {{ifx_source_defined}} and {{ifx_source_rp_name}} != '' else false"
 
 - name: '{{db_prefix}} Source must exist for compact'
   debug: msg="Source '{{ifx_db.source.name}}.{{ifx_source_rp_name}}' must exist, will skip measurements and backfill"
@@ -175,7 +195,7 @@
 
 - name: '{{db_prefix}} Print SOURCE  measurements'
   debug: msg="List of measurements on SOURCE = {{ifx_source_mms|join(', ')}}"
-  when: ifx_db.source is defined and not ifx_source_drop and ifx_source_exists
+  when: ifx_source_defined and not ifx_source_drop and ifx_source_exists
   failed_when: ifx_source_mms|length == 0
 
 - name: '{{db_prefix}} Print TARGET measurements'
@@ -188,7 +208,7 @@
     method: POST
     body: >
       q=CREATE RETENTION POLICY "{{ifx_rp_name}}" ON "{{ifx_db.name}}"
-      DURATION {{ifx_rp_duration}} REPLICATION 1 {{ifx_rp_default}}
+      DURATION {{ifx_rp_duration}} REPLICATION 1 {{ifx_rp_default_string}}
     return_content: yes
   when: ansible_influx_db_create is changed or (ifx_rps is defined and ifx_rp_name not in ifx_rps)
   register: ansible_influx_rp_create
@@ -199,8 +219,8 @@
   include_tasks: influxdb_measurement.yml measurement={{mm_item}}
   with_items: "{{ifx_db.measurements|sort}}"
   loop_control: { loop_var: mm_item }
-  when: ifx_db.measurements is defined and (ifx_source_exists or ifx_source_rp_name == '')
-    and (ifx_cq_recreate or ansible_influx_db_create is changed or mm_item not in ifx_mms or ifx_backfill_force)
+  when: ifx_mm_defined and (ifx_source_exists or ifx_source_rp_name == '')
+    and (ifx_cq_recreate or ansible_influx_db_create is changed or mm_item not in ifx_mms or ifx_bf_force)
 
 - pause:
     prompt: "I will now backfill gap and switch default RP, Continue?" 
@@ -269,11 +289,11 @@
 
 - name: '{{db_prefix}} Total data points written'
   debug: msg="Total data points written = {{mm_backfill_totals|map('int')|sum(start=0)}}"
-  when: ifx_backfill
+  when: ifx_bf_enabled
 
 - name: '{{db_prefix}} Average series downsampling'
   debug: msg="Average series downsampling = {{ (mm_downsampling_totals|map('float')|sum(start=0) / mm_downsampling_totals|length) |round(2) }} %"
-  when: ifx_backfill and mm_downsampling_totals|length > 0
+  when: ifx_bf_enabled and mm_downsampling_totals|length > 0
 
 - name: '{{db_prefix}} Total duration'
   debug: msg="Total duration = {{(lookup('pipe','date +%s')|int - ifx_backfill_start|int)/60}} minutes"

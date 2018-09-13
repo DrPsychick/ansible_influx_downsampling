@@ -117,7 +117,7 @@ script:
     if [ "$TEST" = "recreate_cqs" ]; then
     curl -s http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SHOW CONTINUOUS QUERIES" | jq .;
-    sed -i .bak -e 's#^\( *continuous_query: { interval: "\)1m,5s\(".*\)$#\11m,15s\2#' ./tests/vars/recreate_cqs.yml;
+    sed -i .bak -e 's#^\( *continuous_query: { offset: "\)5s\(".*\)$#\115s\2#' ./tests/vars/recreate_cqs.yml;
     ansible-playbook -i tests/inventory tests/test.yml --connection=local --extra-vars=recreate_cqs=yes
     | grep -q 'changed=0.*failed=0';
     curl -s http://localhost:8086/query?db=$db_name --data-urlencode

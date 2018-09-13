@@ -7,7 +7,7 @@ ansible_influx_databases:
     name: "test_4d"
     retention_policy: { amount: "4", unit: "d", default: yes }
     source: { name: "test", rp_name: "autogen" } 
-    continuous_query: { interval: "1m,5s", resample: { every: "10s", for: "1m" } }
+    continuous_query: { interval: "1m", offset: "5s", resample: { every: "10s", for: "1m" } }
     backfill: { stats: true, step: 2 }
     measurements: { test }
 
