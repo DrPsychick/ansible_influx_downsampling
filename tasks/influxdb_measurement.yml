@@ -90,6 +90,9 @@
 - name: '{{mm_prefix}} List fields'
   debug: msg="Fields of {{measurement}} - {{ifx_mm_fields|join(',')}}"
 
+- name: '{{mm_prefix}} Backfilling {{measurement}} ({{ifx_rp_name}}) from {{source_mm}} with {{ifx_rp_amount}}/{{ifx_bf_step}} steps'
+  debug: msg="start={{ifx_rp_amount|int}} end={{ifx_bf_step|int}} stride=-{{ifx_bf_step|int}}"
+
 - name: '{{mm_prefix}} Backfilling measurement'
   uri:
     url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
