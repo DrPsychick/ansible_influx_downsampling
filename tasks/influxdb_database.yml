@@ -29,14 +29,15 @@
     ifx_rp_enabled: "{{ifx_db.retention_policy is defined}}" # always true (mandatory)
     ifx_rp: "{{ifx_db.retention_policy}}"
     ifx_rp_name_duration: "{{ifx_db.retention_policy.amount+ifx_db.retention_policy.unit if ifx_db.retention_policy.amount is defined else 'forever'}}"
-    ifx_rp_amount: "{{ifx_db.retention_policy.amount}}"
-    ifx_rp_unit: "{{ifx_db.retention_policy.unit}}"
+    ifx_rp_amount: "{{ifx_db.retention_policy.amount|select('defined')}}"
+    ifx_rp_unit: "{{ifx_db.retention_policy.unit|select('defined')}}"
     ifx_rp_default: "{{ifx_db.retention_policy.default|default(false)}}"
 
     ifx_bf_enabled: "{{ifx_db.backfill is defined}}"
     ifx_backfill: "{{ifx_db.backfill|default({})}}"
     ifx_bf: "{{ifx_db.backfill|default({})}}"
     ifx_bf_interval_defined: "{{ifx_db.backfill is defined and ifx_db.backfill.interval is defined}}"
+    ifx_bf_interval: "{{ifx_db.backfill.interval|default('*') if ifx_db.backfill is defined else '*'}}"
     ifx_bf_step_defined: "{{ifx_db.backfill is defined and ifx_db.backfill.step is defined}}"
     ifx_bf_step: "{{ifx_db.backfill.step|default(1) if ifx_db.backfill is defined else 1}}"
     ifx_bf_stats: "{{ifx_db.backfill.stats|default(false) if ifx_db.backfill is defined else false}}"
@@ -81,7 +82,7 @@
     ifx_cq_resample_for: "{{'FOR '+ifx_cq.resample.for if ifx_cq_resample_for_defined else ''}}"
 
     # BF: time(interval)|*, name+amount+unit - '*' only when compact?
-    ifx_bf_interval: "{{ifx_bf.interval if ifx_bf_interval_defined and ifx_bf.interval != '*' else '*'}}"
+    ifx_bf_interval: "{{ifx_bf_interval if ifx_bf_interval_defined else ifx_cq_interval_name}}"
     ifx_bf_where: "{{'AND '+ifx_cq.where if ifx_cq_where_defined else ''}}" # TODO
     ifx_bf_groupby: "{{[] if ifx_bf_interval_defined and ifx_bf.interval == '*' else ifx_cq_groupby}}"
 
