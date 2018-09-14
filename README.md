@@ -38,11 +38,12 @@ Easiest setup is create a role in your own repository and adding this:
 * *hint* you can have any number of setups configured in this role. You just always have to load first **your** role (defining the setup) and then **DrPsychick.ansible_influx_downsampling** for each setup.
 
 `roles/influx-setup/tasks/main.yml`
-```---
-
+```
 - name: "Include definition from influxdb_{{vars_name}}.yml"
   include_vars: influxdb_{{vars_name}}.yml
     when: vars_name is defined
+
+# you can add your own tasks here that will be executed prior to `ansible_influx_downsampling` role
 ```
 
 `roles/influx-setup/vars/influxdb_frank.yml`
@@ -58,6 +59,45 @@ Now in your playbook, include both roles:
     - { role: DrPsychick.ansible_influxdb_downsampling}
 ```
 
+Configuration
+-------------
+
+Now the most tricky part. You need to know what aggregation levels you want and define them. Moreover, especially if you don't use standard telegraf plugins for input, you need to **define the aggregation queries for your measurements**.
+
+InfluxDB has this awesome feature to do dynamic aggregation (`SELECT MEAN(*) FROM :MEASUREMENT GROUP BY *`), **but** is automatically prepends `mean_` to every field in the measurement and this would mean, you **cannot reuse the dashboard you use on your RAW data**.
+
+The solution is simple, but requires work. You have to name your columns individually, idependent of the aggregation method you use.
+
+Example:
+```
+SELECT MEAN(usage_user) FROM cpu; # on RAW
+SELECT MEAN(usage_user) AS usage_user INTO telegraf_14d.rp_14d.cpu FROM cpu; # in aggregate queries
+```
+
+The good thing about defining the aggregation method individually is that you can mix it and choose what is best for the individual column. And once it's defined, it can be reused for all aggregation levels.
+Additionally you can choose to add more aggregations (min, mean and max) and have a dashboard which includes them.
+
+```
+SELECT LAST(string_value) AS string_value # for strings
+SELECT MAX(users) AS users # for metrics where you're interested in the MAX
+...
+```
+
+The configuration goes into you `vars` file or you can choose to setup global vars for it.
+If you use generic input plugins from telegraf or other typical sources, **please add them to `defaults/main.yml` and send me a pull request**, so others can profit from them too.
+
+Query definition or override:
+```
+my_ansible_influx_queries:
+  # override default settings, use german performance counter names
+  win_cpu: >
+    SELECT mean("Benutzerzeit_(Percent)") AS "Benutzerzeit_(Percent)"
+    , mean("DPC-Zeit_(Percent)") AS "DPC-Zeit_(Percent)"
+    , mean("Interruptzeit_(Percent)") AS "Interruptzeit_(Percent)"
+    , mean("Leerlaufzeit_(Percent)") AS "Leerlaufzeit_(Percent)"
+    , mean("Privilegierte_Zeit_(Percent)") AS "Privilegierte_Zeit_(Percent)"
+    , mean("Prozessorzeit_(Percent)") AS "Prozessorzeit_(Percent)"
+```
 
 Attention
 =========
@@ -116,12 +156,13 @@ Version 0.3: Complete incl. automatic compaction, tests and good examples.
 * [x] more tests:
    * [x] run backfill without CQ during operation and switch RP
    * [x] setup with 2 levels and CQ
-   * [ ] recreate CQs
+   * [x] recreate CQs
    * [x] CQs on empty (default) RP of source (sourcedb..measurement)
-   * [ ] Merge recreate with migrate TEST, fix recreate CQs!
+   * [x] Merge recreate with migrate TEST, fix recreate CQs!
 * [x] howto switch retention policy (cleanup after all is setup)
    * [x] Case: copy from "autogen", no CQ, drop source after backfill + set default RP -> see test
-* [ ] shift RPs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds : use time(1m,1s) for offset!
+* [x] shift RPs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds : use time(1m,1s) for offset!
+   * [ ] it does not what it should in our case, it shifts time! so we have to use every + Xs
 
 Version 0.2: Fully working and tested. No deleting of data. Stats + CQ update.
 
