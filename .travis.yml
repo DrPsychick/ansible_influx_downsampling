@@ -94,14 +94,18 @@ script:
     "q=SHOW CONTINUOUS QUERIES" | jq . | grep 'cq_cpu_';
     sed -i -e 's#^\( *interval: "\)1m\(".*\)$#\130s\2#' -e 's#^\(.*every: "\)1m\(".*\)$#\130s\2#' ./tests/vars/migrate.yml;
     ansible-playbook -i tests/inventory tests/test.yml --connection=local --extra-vars=recreate_cqs=yes 2>&1
-    | grep -A1 -e 'localhost.*changed' -e 'Drop continuous';
+    | grep -A1 -e 'Drop continuous';
     result=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SHOW CONTINUOUS QUERIES" | jq .);
-    echo "$result";
     result1="$(echo "$result" | grep "_30s")";
     result2="$(echo "$result" | grep "_1m")";
-    [ -n "$result1" ] && (echo "CQ update test: pass (new CQ exists) $result1"; exit 0);
-    [ -z "$result2" ] && (echo "CQ update test: pass (old CQ is gone) $result2"; exit 0);
+    [ -n "$result1" ] 
+    && (echo "CQ update test: pass (new CQ exists)"; exit 0)
+    || (echo "CQ update test: fail (new CQ does not exist)"; exit 1);
+    [ -z "$result2" ] 
+    && (echo "CQ update test: pass (old CQ is gone)"; exit 0)
+    || (echo "CQ update test: fail (old CQ still exists = $result2)"; exit 1); 
+    ;
     fi
 
   # TEST = compact
