@@ -18,7 +18,6 @@ env:
     - TEST=setup db_name=telegraf_30d rp_name=rp_30d
     - TEST=migrate db_name=test_4d rp_name=rp_4d db_name_source=test
     - TEST=compact db_name=telegraf rp_name=rp_4d
-    # - TEST=recreate_cqs db_name=test_4d rp_name=rp_4d
 
 before_install:
   # Make sure everything's up to date.
@@ -42,7 +41,7 @@ install:
 
   # Seed influxdb (after pip, so influxdb will be reachable)
   - >
-    if [ "$TEST" = "migrate" -o "$TEST" = "recreate_cqs" ]; then
+    if [ "$TEST" = "migrate" ]; then
     ./tests/seed.sh 1m 10s "$(date -d -1hour +"%Y-%m-%d %H:%M:00")" seq+step10;
     fi
 
@@ -57,8 +56,8 @@ script:
   - >
     yes | ansible-playbook -i tests/inventory tests/test.yml --connection=local
     | grep -q 'changed=0.*failed=0'
-    && (echo -e 'Idempotence test: ${GREEN}pass${NC}' && exit 0)
-    || (echo -e 'Idempotence test: ${RED}fail${NC}' && exit 1);
+    && (echo -e "Idempotence test: ${GREEN}pass${NC}" && exit 0)
+    || (echo -e "Idempotence test: ${RED}fail${NC}" && exit 1);
 
   # TEST = basic
   - >
@@ -92,7 +91,7 @@ script:
     "q=SELECT * FROM $db_name.$rp_name.test" | jq .results[0].series[0].values[0][1]);
     [ "$result" = "35" ]
     && (echo -e "Aggregation test: ${GREEN}pass${NC}"; exit 0)
-    || (echo -e "Aggregation test ${RED}fail${NC}ed: ('$result' != 35)"; exit 1);
+    || (echo -e "Aggregation test: ${RED}fail${NC}ed: ('$result' != 35)"; exit 1);
     curl -s http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SHOW CONTINUOUS QUERIES" | jq . | grep 'cq_cpu_';
     sed -i -e 's#^\( *interval: "\)1m\(".*\)$#\130s\2#' -e 's#^\(.*every: "\)1m\(".*\)$#\130s\2#' ./tests/vars/migrate.yml;
@@ -113,33 +112,22 @@ script:
   # TEST = compact
   - >
     if [ "$TEST" = "compact" ]; then
-    curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
-    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.autogen.cpu";
-    curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
-    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.$rp_name.cpu";
     result1=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
     "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.$rp_name.cpu" | jq .results[0].series[0].values[0][1]);
+    curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
+    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name..cpu";
     result2=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
     "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name..cpu" | jq .results[0].series[0].values[0][1]);
     [ "$result1" = "$result2" ]
     && (echo -e "Compact test: ${GREEN}pass${NC} (new RP is default)"; exit 0)
     || (echo -e -e "Compact test: ${RED}fail${NC} (new RP is not default):\n$result1 != $result2"; exit 1);
+    curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
+    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.autogen.cpu";
     result3=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode 
     "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.autogen.cpu" | jq .results[0].error);
     [ -n "$result3" ]
     && (echo -e "Compact test: ${GREEN}pass${NC} (source is gone)"; exit 0)
     || (echo -e "Compact test: ${RED}fail${NC} (source still exists)"; exit 1);
-    fi
-
-  - >
-    if [ "$TEST" = "recreate_cqs" ]; then
-    curl -s http://localhost:8086/query?db=$db_name --data-urlencode
-    "q=SHOW CONTINUOUS QUERIES" | jq .;
-    sed -i .bak -e 's#^\( *continuous_query: { interval: "\)10s\(".*\)$#\115s\2#' ./tests/vars/recreate_cqs.yml;
-    ansible-playbook -i tests/inventory tests/test.yml --connection=local --extra-vars=recreate_cqs=yes
-    | grep -q 'changed=0.*failed=0';
-    curl -s http://localhost:8086/query?db=$db_name --data-urlencode
-    "q=SHOW CONTINUOUS QUERIES" | jq .;
     fi
 
 after_script:
