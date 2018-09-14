@@ -105,7 +105,6 @@ script:
     [ -z "$result2" ] 
     && (echo "CQ update test: pass (old CQ is gone)"; exit 0)
     || (echo "CQ update test: fail (old CQ still exists = $result2)"; exit 1); 
-    ;
     fi
 
   # TEST = compact
