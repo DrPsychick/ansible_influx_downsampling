@@ -9,56 +9,144 @@ sudo: required
 dist: xenial
 
 env:
-  - TEST=basic
-  - TEST=migration
+  global:
+    - GREEN='\033[0;32m'
+    - RED='\033[0;31m'
+    - NC='\033[0m' # No Color
+  matrix:
+    - TEST=basic db_name=telegraf rp_name=rp_4d
+    - TEST=setup db_name=telegraf_30d rp_name=rp_30d
+    - TEST=migrate db_name=test_4d rp_name=rp_4d db_name_source=test
+    - TEST=compact db_name=telegraf rp_name=rp_4d
 
 before_install:
   # Make sure everything's up to date.
-  - sudo apt-get update -qq
-  - docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
+  #- sudo apt-get update -qq
 
 install:
+  # start influxdb (will take some time to be reachable!)
+  - docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
+
+  # start telegraf to continuously write data to influxdb
+  - >
+    if [ "$TEST" = "setup" -o "$TEST" = "compact" ]; then
+    docker run -d --net host --name telegraf telegraf:alpine; sleep 10;
+    fi
+
   # Install ansible and jq.
   - "pip install ansible jq"
 
   # Add ansible.cfg to pick up roles path.
   - printf "[defaults]\nroles_path = ../" > ansible.cfg
 
-  # Seed influxdb
-  - if [ "$TEST" = "migration" ]; then ./tests/seed.sh 1m 10s "$(date -d -1hour +"%Y-%m-%d %H:%M:00")" seq+step10; fi
+  # Seed influxdb (after pip, so influxdb will be reachable)
+  - >
+    if [ "$TEST" = "migrate" ]; then
+    ./tests/seed.sh 1m 10s "$(date -d -1hour +"%Y-%m-%d %H:%M:00")" seq+step10;
+    fi
 
 script:
   # Check the role/playbook's syntax.
   - ansible-playbook -i tests/inventory tests/test.yml --syntax-check
+
   # Run the role/playbook with ansible-playbook.
-  - ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo
+  - yes | ansible-playbook -i tests/inventory tests/test.yml --connection=local
 
   # Run the role/playbook again, checking to make sure it's idempotent.
   - >
-    ansible-playbook -i tests/inventory tests/test.yml --connection=local --sudo
+    yes | ansible-playbook -i tests/inventory tests/test.yml --connection=local
     | grep -q 'changed=0.*failed=0'
-    && (echo 'Idempotence test: pass' && exit 0)
-    || (echo 'Idempotence test: fail' && exit 1);
+    && (echo -e "Idempotence test: ${GREEN}pass${NC}" && exit 0)
+    || (echo -e "Idempotence test: ${RED}fail${NC}" && exit 1);
 
-  # TEST = migration
+  # TEST = basic
   - >
-    if [ "$TEST" = "migration" ]; then
-    curl -s http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT * FROM test_agg.rp_7d.test";
-    result=$(curl -s http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT MEAN(value) FROM test_agg.rp_7d.test" | jq .results[0].series[0].values[0][1]);
-    [ "$result" -ne 35 ] && (echo "Aggregation test failed: '$result' != 35"; exit 1) || (echo "Aggregation test: pass"; exit 0);
+    if [ "$TEST" = "basic" ]; then
+    result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SHOW RETENTION POLICIES" | jq .results[0].series[0].values[1][0] |tr -d '"');
+    [ "$result" = "$rp_name" ]
+    && (echo -e "Retention policy test: ${GREEN}pass${NC}"; exit 0)
+    || (echo -e -e "Retention policy test: ${RED}fail${NC} ('$result' != '$rp_name')"; exit 1);
+    fi
+
+  # TEST = setup (wait for CQ to run)
+  - >
+    if [ "$TEST" = "setup" ]; then
+    sleep 10;
+    curl http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m" | jq .;
+    result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m"
+    | jq .results[0].series[0].values[0][1]);
+    [ "$result" -gt 0 ]
+    && (echo -e "Setup test: ${GREEN}pass${NC}"; exit 0)
+    || (echo -e -e "Setup test: ${RED}fail${NC} ($result)"; exit 1);
+    fi
+
+  # TEST = migrate
+  - >
+    if [ "$TEST" = "migrate" ]; then
+    curl -s http://localhost:8086/query?db=$db_name --data-urlencode "q=SELECT * FROM $db_name.$rp_name.test";
+    result=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SELECT * FROM $db_name.$rp_name.test" | jq .results[0].series[0].values[0][1]);
+    [ "$result" = "35" ]
+    && (echo -e "Aggregation test: ${GREEN}pass${NC}"; exit 0)
+    || (echo -e "Aggregation test: ${RED}fail${NC}ed: ('$result' != 35)"; exit 1);
+    curl -s http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SHOW CONTINUOUS QUERIES" | jq . | grep 'cq_cpu_';
+    sed -i -e 's#^\( *interval: "\)1m\(".*\)$#\130s\2#' -e 's#^\(.*every: "\)1m\(".*\)$#\130s\2#' ./tests/vars/migrate.yml;
+    ansible-playbook -i tests/inventory tests/test.yml --connection=local --extra-vars=recreate_cqs=yes 2>&1
+    | grep -A1 -e 'Drop continuous';
+    result=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SHOW CONTINUOUS QUERIES" | jq .);
+    result1="$(echo "$result" | grep "_30s")";
+    result2="$(echo "$result" | grep "_1m")";
+    [ -n "$result1" ]
+    && (echo -e "CQ update test: ${GREEN}pass${NC} (new CQ exists)"; exit 0)
+    || (echo -e "CQ update test: ${RED}fail${NC} (new CQ does not exist)"; exit 1);
+    [ -z "$result2" ]
+    && (echo -e "CQ update test: ${GREEN}pass${NC} (old CQ is gone)"; exit 0)
+    || (echo -e "CQ update test: ${RED}fail${NC} (old CQ still exists = $result2)"; exit 1);
+    fi
+
+  # TEST = compact
+  - >
+    if [ "$TEST" = "compact" ]; then
+    result1=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.$rp_name.cpu" | jq .results[0].series[0].values[0][1]);
+    curl -s http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name..cpu";
+    result2=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name..cpu" | jq .results[0].series[0].values[0][1]);
+    [ "$result1" = "$result2" ]
+    && (echo -e "Compact test: ${GREEN}pass${NC} (new RP is default)"; exit 0)
+    || (echo -e -e "Compact test: ${RED}fail${NC} (new RP is not default):\n$result1 != $result2"; exit 1);
+    curl -s http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.autogen.cpu";
+    result3=$(curl -s http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SELECT MEAN(usage_user) AS usage_user FROM $db_name.autogen.cpu" | jq .results[0].error);
+    [ -n "$result3" ]
+    && (echo -e "Compact test: ${GREEN}pass${NC} (source is gone)"; exit 0)
+    || (echo -e "Compact test: ${RED}fail${NC} (source still exists)"; exit 1);
     fi
 
 after_script:
+  - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW DATABASES";
+  - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW RETENTION POLICIES";
+  - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW MEASUREMENTS";
   - >
-    if [ "$TEST" = "basic" ]; then
-    curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW DATABASES";
-    curl http://localhost:8086/query?db=telegraf --data-urlencode "q=SHOW RETENTION POLICIES";
+    if [ "$TEST" = "setup" ]; then
+    curl http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SELECT usage_user FROM $db_name.$rp_name.cpu" | jq .;
     fi
   - >
-    if [ "$TEST" = "migration" ]; then
-    curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT * FROM test.autogen.test" | jq .results[0].series[0];
-    curl http://localhost:8086/query?db=test --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test" | jq .results[0].series[0];
-    curl http://localhost:8086/query?db=test_agg --data-urlencode "q=SELECT MEAN(value) FROM test_agg.rp_7d.test" | jq .results[0].series[0];
+    if [ "$TEST" = "migrate" ]; then
+    curl http://localhost:8086/query?db=$db_name_source --data-urlencode
+    "q=SELECT * FROM $db_name_source.autogen.test" | jq .results[0].series[0];
+    curl http://localhost:8086/query?db=$db_name_source --data-urlencode
+    "q=SELECT MEAN(value) FROM $db_name_source.autogen.test" | jq .results[0].series[0];
+    curl http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SELECT MEAN(value) FROM $db_name.$rp_name.test" | jq .results[0].series[0];
     fi
 
 notifications:

@@ -2,22 +2,17 @@
 ansible_influx_url: "http://localhost:8086"
 ansible_influx_timeout: 120
 
-# Force recreate continuous queries
+# Ansible variable to force recreate continuous queries
 # recreate_cqs=yes
 
-# docker run --rm -it --name influxdb-test -p 8086:8086 docker-influxdb:latest
-# you need to overwrite this:
-# TODO: set sane defaults
+# you need to overwrite this with your own definition:
 ansible_influx_databases:
-  level_1:
+  level_0:
     name: "telegraf"
-    # rp_name: "autogen"
-    duration: { amount: "30", unit: "d" }
-    cq_interval: "15m"
-    measurements: { cpu }
+    retention_policy: { amount: "0", unit: "s", name: "autogen" }
 
 # Predefined set of queries for standard telegraf inputs
-# You can overwrite these with selectively the variable "my_ansible_influx_queries"
+# You can overwrite these selectively with the variable "my_ansible_influx_queries"
 # Use the same structure as below.
 
 # Attention!
