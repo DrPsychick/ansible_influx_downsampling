@@ -1,0 +1,19 @@
+---
+
+# backfill 4 days, then make new RP default and drop old RP
+ansible_influx_databases:
+  level_0:
+    name: "telegraf"
+    retention_policy:
+      amount: "4"
+      unit: "d"
+      default: yes
+    source:
+      name: "telegraf"
+      rp_name: "autogen"
+      drop_after_backfill: yes
+    backfill:
+      interval: "*"
+      stats: true
+      step: 2
+    measurements: { cpu }

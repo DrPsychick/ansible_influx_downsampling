@@ -51,8 +51,8 @@ else
   exit 1
 fi
 
-curl -s "$influxdb/query" --data-urlencode 'q=CREATE DATABASE test' > /dev/null || { 
-  echo "InfluxDB not reachable!"; exit 1; 
+curl -s "$influxdb/query" --data-urlencode 'q=CREATE DATABASE test' > /dev/null || {
+  echo "InfluxDB not reachable!"; exit 1;
 }
 
 # time
@@ -78,4 +78,6 @@ for i in $(seq 1 $((tr_sec/ivl_sec))); do
   i=$((i++))
 done
 
-curl -s "$influxdb/query?db=$database" --data-urlencode "q=SELECT MEAN(value) FROM test.autogen.test WHERE time >= ${start_sec}000000000 AND time < ${start_sec}000000000 + 1m GROUP BY time($tr)" |json_pp
+query="q=SELECT MEAN(value) FROM test.autogen.test WHERE time >= ${start_sec}000000000 AND time < ${start_sec}000000000 + 1m GROUP BY time($tr)"
+echo "$query"
+curl -s "$influxdb/query?db=$database" --data-urlencode "$query" |json_pp
