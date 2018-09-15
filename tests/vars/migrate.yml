@@ -5,7 +5,7 @@
 ansible_influx_databases:
   level_0:
     name: "test_4d"
-    retention_policy: 
+    retention_policy:
       amount: "4"
       unit: "d"
       default: yes

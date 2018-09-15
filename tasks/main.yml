@@ -30,8 +30,8 @@
 - set_fact:
     ifx_cqs: "{{ansible_influx_cqs.json.results
       |selectattr('series', 'defined')|map(attribute='series')|flatten
-      |rejectattr('values', 'callable')|map(attribute='values')|flatten 
-      |select('match', '^(?!CREATE).*') |list 
+      |rejectattr('values', 'callable')|map(attribute='values')|flatten
+      |select('match', '^(?!CREATE).*') |list
       if ansible_influx_cqs.json.results is defined else []}}"
 
 - name: Setup databases

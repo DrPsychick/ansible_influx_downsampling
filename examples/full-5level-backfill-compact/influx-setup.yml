@@ -1,7 +1,7 @@
 ---
 
-- name: InfluxDB 
+- name: InfluxDB
   hosts: localhost
-  roles: 
+  roles:
     - { role: influxdb-setup, vars_name: "full" }
     - { role: DrPsychick.ansible_influx_downsampling }

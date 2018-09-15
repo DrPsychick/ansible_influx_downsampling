@@ -1,7 +1,7 @@
 ## DrPsychick.ansible_influx_downsampling
 
 [![Build Status](https://travis-ci.org/DrPsychick/ansible_influx_downsampling.svg?branch=master)](https://travis-ci.org/DrPsychick/ansible_influx_downsampling)
-[![license](https://img.shields.io/github/license/drpsychick/ansible_influx_downsampling.svg)](https://github.com/drpsychick/ansible_influx_downsampling/blob/master/LICENSE) 
+[![license](https://img.shields.io/github/license/drpsychick/ansible_influx_downsampling.svg)](https://github.com/drpsychick/ansible_influx_downsampling/blob/master/LICENSE)
 
 
 Configure influxDB for downsampling
@@ -120,7 +120,7 @@ If you enable **backfill**:
 
 If you enable **backfill and compact**:
 * After a complete run with compaction you need to check and recreate all continuous queries based on the new default RP of the source.
-* Better: specify ".." as source to always use the default (see TODOs)
+* Better: specify ".." as source to always use the default RP of the source.
 
 Results of my full setup can be found in [examples/full-5level-backfill-compact/](examples/full-5level-backfill-compact/)
 
@@ -142,6 +142,7 @@ Future Version:
 * [ ] add changed_when conditions (e.g. drop+create CQ should be "changed")
 * [ ] add RP shard duration option
 * [ ] shift CQs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds
+* [ ] TEST: levels use "default" RP on source, then switch (compact) : CQs should continue to run fine
 
 Version 0.3: Complete incl. automatic compaction, tests and good examples.
 

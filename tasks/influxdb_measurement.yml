@@ -31,6 +31,8 @@
 
 - name: '{{mm_prefix}} Set dependent defaults'
   set_fact:
+    # select * when backfill interval='*'
+    bf_select: "{{'SELECT *' if ifx_bf_enabled and ifx_bf_interval == '*' else cq_select}}"
     mm_offset: "{{','+(cq_counter|int*mm_cq_offset|int)|string+mm_cq_offset_unit if mm_cq_offset != '' else ''}}"
     bf_groupby_string: "{{','+bf_groupby|join(',') if bf_groupby|length > 0 else ''}}"
     cq_groupby_string: "{{','+cq_groupby|join(',') if cq_groupby|length > 0 else ''}}"
@@ -75,8 +77,8 @@
     mm_count_source: "{{ansible_influx_mm_count.json.results
       |selectattr('series','defined')|map(attribute='series')|flatten
       |map(attribute='values')|flatten|select('number')|map('int')|max}}"
-  when: ansible_influx_mm_count is succeeded 
-    and ansible_influx_mm_count.json is defined 
+  when: ansible_influx_mm_count is succeeded
+    and ansible_influx_mm_count.json is defined
     and ansible_influx_mm_count.json.results[0].series is defined
 
 - name: '{{mm_prefix}} Count on SOURCE'
@@ -89,14 +91,12 @@
       |selectattr('series', 'defined')|map(attribute='series')|flatten
       |rejectattr('values', 'callable')|map(attribute='values')|flatten
       |select('match', '^(?!integer|float|string).*$')|list|default([])}}"
-    # select * when backfill groupby='*'
-    bf_select: "{{'SELECT *' if ifx_bf_enabled and ifx_bf_interval == '*' else cq_select}}"
 
 - name: '{{mm_prefix}} List fields'
   debug: msg="Fields of {{measurement}} - {{ifx_mm_fields|join(',')}}"
 
 - name: '{{mm_prefix}} Backfilling {{measurement}} ({{ifx_rp_name}}) from {{source_mm}} with {{ifx_rp_amount}}/{{ifx_bf_step}} steps'
-  debug: msg="start={{ifx_rp_amount|int}} end={{ifx_bf_step|int}} stride=-{{ifx_bf_step|int}}"
+  debug: msg="Sequence start={{ifx_rp_amount|int}} end={{ifx_bf_step|int}} stride=-{{ifx_bf_step|int}}"
 
 - name: '{{mm_prefix}} Backfilling measurement'
   uri:
@@ -141,7 +141,7 @@
   debug: msg="Total data points written = {{mm_backfill_result}}"
   when: ifx_bf_enabled and ansible_influx_mm_backfill is changed
 
-- debug: msg="{{'cq_' + measurement + '_.*'}} in {{ifx_cqs}} = {{cq_old_match}} -> DROP {{drop_cq_name}}"
+#- debug: msg="{{'cq_' + measurement + '_.*'}} in {{ifx_cqs}} = {{cq_old_match}} -> DROP {{drop_cq_name}}"
 
 # always drop and recreate CQ (we cannot update it) - IFF CQ is enabled
 - name: '{{mm_prefix}} Drop continuous query {{drop_cq_name}}'

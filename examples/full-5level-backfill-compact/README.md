@@ -26,7 +26,7 @@ My Settings for **backfilling 9GB of data on 5 aggregation levels** on a docker 
   * 1 year  : 1 hour granularity
   * 3 years : 3 hours granularity
 * `ansible_influx_timeout`: 600 (10 minutes)
-* influxdb.conf: 
+* influxdb.conf:
   * `query-timeout="600s"`
   * `max-select-point=300000000`
   * `max-select-series=1000000`
@@ -35,7 +35,7 @@ My Settings for **backfilling 9GB of data on 5 aggregation levels** on a docker 
 Running the playbook
 --------------------
 
-* backfill duration: 
+* backfill duration:
   * 14 days :  42 minutes
   * 30 days :  38 minutes
   * 90 days :  80 minutes
@@ -91,7 +91,7 @@ Alternative:
 1. query continuous queries
 2. transform them with `jq` or another tool to pure query strings
 ```
-curl -s -X POST http://localhost:8086/query --data-urlencode "q=SHOW CONTINUOUS QUERIES" | 
+curl -s -X POST http://localhost:8086/query --data-urlencode "q=SHOW CONTINUOUS QUERIES" |
   jq .results[].series[3,4,5,6,7].values[][1] > cq.log
 ```
 

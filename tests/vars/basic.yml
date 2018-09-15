@@ -6,7 +6,7 @@ ansible_influx_databases:
     retention_policy: { name: "autogen" }
   level_1:
     name: "telegraf"
-    retention_policy: 
+    retention_policy:
       amount: "4"
       unit: "d"
       default: true

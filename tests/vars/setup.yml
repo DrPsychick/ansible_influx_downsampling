@@ -7,7 +7,7 @@
 ansible_influx_databases:
   level_0:
     name: "telegraf"
-    retention_policy: 
+    retention_policy:
       amount: "7"
       unit: "d"
       default: true

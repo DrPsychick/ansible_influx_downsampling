@@ -51,8 +51,8 @@ else
   exit 1
 fi
 
-curl -s "$influxdb/query" --data-urlencode 'q=CREATE DATABASE test' > /dev/null || { 
-  echo "InfluxDB not reachable!"; exit 1; 
+curl -s "$influxdb/query" --data-urlencode 'q=CREATE DATABASE test' > /dev/null || {
+  echo "InfluxDB not reachable!"; exit 1;
 }
 
 # time

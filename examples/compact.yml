@@ -8,26 +8,26 @@ ansible_influx_databases:
   level_0:
     name: "telegraf"
     # evict after 14 days, make default so new data automatically goes here
-    retention_policy: 
+    retention_policy:
       amount: "14"
       unit: "d"
       default: true
     # source is the default RP which we want to compact
     # drop the source after backfilling and setting default RP is successful
-    source: 
+    source:
       name: "telegraf"
       rp_name: "autogen"
       drop_after_backfill: true
     # no continuous query, we want to replace the data with new RP
     # backfill with RAW interval (*) in 1-day steps and provide stats
-    backfill: 
+    backfill:
       interval: "*"
       step: "1"
       stats: true
     # measurements to downsample, required for continuous_query or backfill
     # only the name is required, the rest can be used to overwrite defaults from DB level
     # you can use this to drop obsolete measurements or filter tags
-    measurements: 
+    measurements:
       cpu:
         # where: '"host" = \'foo.bar\'"
       mem:

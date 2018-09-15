@@ -10,7 +10,7 @@ ansible_influx_databases:
     retention_policy: { amount: "14", unit: "d", default: true }
     # no source -> no CQ or backfill
     #source: { name: "telegraf", rp_name: "autogen", drop_after_backfill: false }
-    # continuous query to keep downsampled data up2date 
+    # continuous query to keep downsampled data up2date
     #continuous_query:
     #  interval: "1m"
     #  where: "1 = 1"
@@ -19,5 +19,5 @@ ansible_influx_databases:
     #backfill: { step: "2", stats: false }
     # measurements to downsample, required for continuous_query or backfill
     # only the name is required, the rest can be used to overwrite defaults from DB level
-    #measurements: 
+    #measurements:
     #  cpu: { interval: "1m", where: '"host" = \'myhost.com\'', resample: { every: "2m", for: "5m" } }
