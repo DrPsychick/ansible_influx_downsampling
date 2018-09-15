@@ -14,11 +14,14 @@ Two usage scenarios:
 * You already have an influxdb running and it's getting BIG, so you want to introduce downsampling on-the-fly to make things faster and cheaper
 * You intend to use influxdb and want to set it up with downsampling in mind (so it does not grow big over time in the first place)
 
-Honestly the two use cases are not much different. The biggest difference is the time it takes to run through the playbook when you enable backfilling. Of course, if you work on existing data, don't forget to have a proper backup!
+Honestly the two use cases are not much different. The biggest difference is the time it takes to run through the playbook when you enable backfilling. Of course, if you work on existing data, don't forget to **have a proper backup!**
 
 Demo
 ----
 
+![Levels of downsampling](examples/influx-downsampling.png "Levels of downsampling")
+
+How it works:
 ![Watch the demo](examples/grafana-demo.gif "Watch the demo")
 
 This requires to setup a "database" variable, like so:
@@ -64,9 +67,9 @@ Configuration
 
 Now the most tricky part. You need to know what aggregation levels you want and define them. Moreover, especially if you don't use standard telegraf plugins for input, you need to **define the aggregation queries for your measurements**.
 
-InfluxDB has this awesome feature to do dynamic aggregation (`SELECT MEAN(*) FROM :MEASUREMENT GROUP BY *`), **but** is automatically prepends `mean_` to every field in the measurement and this would mean, you **cannot reuse the dashboard you use on your RAW data**.
+InfluxDB has this awesome feature to do dynamic aggregation (`SELECT MEAN(*) FROM :MEASUREMENT GROUP BY *`), **but** it automatically prepends `mean_` to every field in the measurement and this would mean, you **cannot reuse the dashboard you use on your RAW data**.
 
-The solution is simple, but requires work. You have to name your columns individually, idependent of the aggregation method you use.
+The solution is simple, but requires work. You have to name your columns individually as the original column, idependent of the aggregation method you use.
 
 Example:
 ```
@@ -83,7 +86,7 @@ SELECT MAX(users) AS users # for metrics where you're interested in the MAX
 ...
 ```
 
-The configuration goes into you `vars` file or you can choose to setup global vars for it.
+The configuration goes into your `vars` file or you can choose to setup global vars for it.
 If you use generic input plugins from telegraf or other typical sources, **please add them to `defaults/main.yml` and send me a pull request**, so others can profit from them too.
 
 Query definition or override:
@@ -99,6 +102,8 @@ my_ansible_influx_queries:
     , mean("Prozessorzeit_(Percent)") AS "Prozessorzeit_(Percent)"
 ```
 
+A complete setup can be found in [examples/full-5level-backfill-compact/](examples/full-5level-backfill-compact/)
+
 Attention
 =========
 If you enable **backfill**:
@@ -110,29 +115,7 @@ If you enable **backfill and compact**:
 * After a complete run with compaction you need to check and recreate all continuous queries based on the new default RP of the source.
 * Better: specify ".." as source to always use the default (see TODOs)
 
-My Settings for backfilling 9GB of data on 5 aggregation levels on a docker container with 3GB of RAM (no CPU limit for backfilling)
-* `ansible_influx_databases`, 5 levels: 14d@1m, 30d@5m, 90d@15m, 1y@1h, 3y@3h (data only available for about 1 year)
-* `ansible_influx_timeout`: 600 (10 minutes)
-* influxdb.conf: 
-  * `query-timeout="600s"`
-  * `max-select-point=300000000`
-  * `max-select-series=1000000`
-  * `log-queries-after="10s"`
-* backfill duration: 
-  * 14 days :  42 minutes
-  * 30 days :  38 minutes
-  * 90 days :  80 minutes
-  *  1 year : 120 minutes
-  *  3 years: 170 minutes
-  * compact7d: 42 minutes (switch source RP to 7d (compact))
-  * **total**: 492 m ~8.5 hours
-* Result
-  * Series dropped from ~28k to 4k after compaction of source (9.6GB to 400MB)
-  * `docker_container_blkio` takes the longest, maybe because of my multi-element where clause "/^(a|b|c|...)$/" and tons of generated container_names in the DB...
-  * `influxdb_shard` had many data-points (had to increase influxdb.conf setting)
-  * A small gap between backfilling and retention policy switch during compact
-
-My full setup can be found in [examples/full-5level-backfill-compact/](examples/full-5level-backfill-compact/)
+Results of my full setup can be found in [examples/full-5level-backfill-compact/](examples/full-5level-backfill-compact/)
 
 Use Cases
 =========
@@ -145,10 +128,10 @@ History
 =======
 
 Future Version:
-* [ ] refactor/cleanup variables + introduce "mode" = setup, migrate, compact with separate task files
-* [ ] add changed_when conditions
+* [i] refactor/cleanup variables + introduce "mode" = setup, migrate, compact with separate task files
+* [ ] add changed_when conditions (e.g. drop+create CQ should be "changed")
 * [ ] add RP shard duration option
-* [ ] backfill gap twice or until it is below x=1 minute (to keep gap as small as possible)
+* [ ] shift CQs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds
 
 Version 0.3: Complete incl. automatic compaction, tests and good examples.
 
@@ -161,8 +144,8 @@ Version 0.3: Complete incl. automatic compaction, tests and good examples.
    * [x] Merge recreate with migrate TEST, fix recreate CQs!
 * [x] howto switch retention policy (cleanup after all is setup)
    * [x] Case: copy from "autogen", no CQ, drop source after backfill + set default RP -> see test
-* [x] shift RPs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds : use time(1m,1s) for offset!
-   * [ ] it does not what it should in our case, it shifts time! so we have to use every + Xs
+* [x] implement "offset" for CQs, it shifts time!
+* [x] backfill gap twice or until it is below x=1 minute (to keep gap as small as possible)
 
 Version 0.2: Fully working and tested. No deleting of data. Stats + CQ update.
 
