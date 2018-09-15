@@ -8,7 +8,8 @@ My "telegraf" database has about 9GB size on disk, holds about 1 year of RAW dat
 
 The continuous queries are all based on the RAW source. You could theoretically each base them on the previous aggregate, which would then calculate MEANs of MEANs, but would be faster/more efficient.
 
-Disk space before migrate + compact
+Disk space before migrate + compact:
+
 ```
 162M	/var/lib/docker/volumes/monitoring_influxdb/_data/data/_internal
 9.6G	/var/lib/docker/volumes/monitoring_influxdb/_data/data/telegraf
@@ -51,11 +52,14 @@ Running the playbook
 After completion
 ----------------
 
-90 days trend:
+90 days trend of my InfluxDB Measurements and Series:
+
 ![Measurements](Measurements.png "Measurements")
+
 ![Series](Series.png "Series")
 
-Disk space after migrate + compact
+Disk space after migrate + compact:
+
 ```
 188M	/var/lib/docker/volumes/monitoring_influxdb/_data/data/_internal
 57M	/var/lib/docker/volumes/monitoring_influxdb/_data/data/telegraf_3y
@@ -69,9 +73,10 @@ Disk space after migrate + compact
 Helpful commands to fill gaps:
 ------------------------------
 
-Alternative to doing this manually, is createing a similar setup that (force) backfills aggregates of the last 7 days.
+**Hint**: Alternative to doing this manually, is creating a similar setup that (force) backfills aggregates of the last days/hours.
 
-Define timestamp for backfill (Make sure its UTC!):
+Define the timestamp from wher to start backfilling (Make sure its UTC!):
+
 `ts_backfill=$(date -d "2018-09-12 16:00" +%s)000ms`
 
 Simple:
