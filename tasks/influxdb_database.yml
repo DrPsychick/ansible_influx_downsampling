@@ -93,8 +93,6 @@
     # when retention_policy.default=true, unless drop after backfill (compact mode) - it will switch DEFAULT later
     ifx_rp_default_string: "{{'DEFAULT' if ifx_rp_default and not ifx_mode == 'compact' else ''}}"
 
-- name: "
-
 - name: '{{db_prefix}} Database definition, mode "{{ifx_mode}}" on "{{ifx_db.name}} (recreate CQs: {{ifx_cq_recreate}})"'
   debug: var=ifx_db
 
