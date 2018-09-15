@@ -53,7 +53,7 @@
 
 # for mode=setup
 # NOT source OR source + cq + measurements
-- name: "Identify mode (setup|migrate|compact)"
+- name: "Identify 'setup' mode"
   set_fact:
     ifx_mode: "{{'setup' if not ifx_source_defined or (ifx_source_defined and ifx_cq_enabled and ifx_mm_defined) else ifx_mode}}"
 
@@ -270,10 +270,10 @@
       |map(attribute='values')|flatten|select('number')|map('int')|sum(start=0)}}"
   when: ansible_influx_bf_closegap is not skipped
 
-- debug: msg="{{ansible_influx_bf_closegap.json.results
-      |selectattr('series', 'defined')|map(attribute='series')|flatten
-      |map(attribute='values')|flatten}}"
-  when: ansible_influx_bf_closegap is not skipped
+#- debug: msg="{{ansible_influx_bf_closegap.json.results
+#      |selectattr('series', 'defined')|map(attribute='series')|flatten
+#      |map(attribute='values')|flatten}}"
+#  when: ansible_influx_bf_closegap is not skipped
 
 - name: '{{db_prefix}} Backfill again points written'
   debug: msg="Total data points written = {{db_backfill_closegap+db_backfill_closegap2}}"
