@@ -1,4 +1,8 @@
+## DrPsychick.ansible_influx_downsampling
+
 [![Build Status](https://travis-ci.org/DrPsychick/ansible_influx_downsampling.svg?branch=master)](https://travis-ci.org/DrPsychick/ansible_influx_downsampling)
+[![license](https://img.shields.io/github/license/drpsychick/ansible_influx_downsampling.svg)](https://github.com/drpsychick/ansible_influx_downsampling/blob/master/LICENSE) 
+
 
 Configure influxDB for downsampling
 ===================================
@@ -19,12 +23,12 @@ Honestly the two use cases are not much different. The biggest difference is the
 Demo
 ----
 
-![Levels of downsampling](examples/influx-downsampling.png "Levels of downsampling")
+See the result in action:
 
-How it works:
 ![Watch the demo](examples/grafana-demo.gif "Watch the demo")
 
-This requires to setup a "database" variable, like so:
+This requires to setup multiple datasources in grafana (one for each aggregation level) and a "Datasource" variable, like so:
+
 ![Setup database variable](examples/grafana-database-variable.png "Database variable")
 
 
@@ -32,6 +36,8 @@ Preparation
 -----------
 As preparation you don't need much, except knowing how exactly you want to downsample your data as you need to setup your configuration first.
 Once configured, you can run each level separately and/or repeatedly without any issue as the role only creates/adds what is missing (ok, CQs are always recreated as there is no way to alter them). This way you can iterate your way towards a final setup and add compaction as last step, once you're happy with the result.
+
+![Levels of downsampling](examples/influx-downsampling.png "Levels of downsampling")
 
 Setup
 -----
@@ -53,11 +59,12 @@ Easiest setup is create a role in your own repository and adding this:
 --> take one from the examples directory as a base for your own: [examples/](examples/)
 
 Now in your playbook, include both roles:
+
 `influx-setup.yml`
 ```
-- name: InfluxDB 
+- name: InfluxDB
   hosts: localhost
-  roles: 
+  roles:
     - { role: influx-setup, vars_name: "frank" }
     - { role: DrPsychick.ansible_influxdb_downsampling}
 ```
@@ -128,7 +135,10 @@ History
 =======
 
 Future Version:
-* [i] refactor/cleanup variables + introduce "mode" = setup, migrate, compact with separate task files
+
+* [ ] refactor/cleanup variables
+   * [x] introduce "mode" = setup, migrate, compact
+   * [ ] separate task files
 * [ ] add changed_when conditions (e.g. drop+create CQ should be "changed")
 * [ ] add RP shard duration option
 * [ ] shift CQs by "spread" seconds: 60+/-5sec EVERY 5m+-1s,2s,3s,... + step in seconds
@@ -145,14 +155,14 @@ Version 0.3: Complete incl. automatic compaction, tests and good examples.
 * [x] howto switch retention policy (cleanup after all is setup)
    * [x] Case: copy from "autogen", no CQ, drop source after backfill + set default RP -> see test
 * [x] implement "offset" for CQs, it shifts time!
-* [x] backfill gap twice or until it is below x=1 minute (to keep gap as small as possible)
+* [x] backfill gap twice (to keep gap as small as possible)
 
 Version 0.2: Fully working and tested. No deleting of data. Stats + CQ update.
 
 * [x] Update description + basic readme
 * [x] Check variables upfront (define clear dependencies) and print useful error messages before acting
 * [x] fix: continuous_query is required even if empty (bad usability)
-* [x] more tests: 
+* [x] more tests:
    * [x] test parallel tests
    * [x] prepare seeding (generator or file?)
    * [x] run downsampling + backfill on existing DB (needs seed)
