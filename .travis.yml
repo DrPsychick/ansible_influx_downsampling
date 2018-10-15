@@ -133,6 +133,7 @@ script:
 after_script:
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW DATABASES";
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW RETENTION POLICIES";
+  - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW CONTINUOUS QUERIES";
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW MEASUREMENTS";
   - >
     if [ "$TEST" = "setup" ]; then
