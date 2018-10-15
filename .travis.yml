@@ -72,7 +72,7 @@ script:
   # TEST = setup (wait for CQ to run)
   - >
     if [ "$TEST" = "setup" ]; then
-    sleep 10;
+    sleep 15;
     curl http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m" | jq .;
     result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode
