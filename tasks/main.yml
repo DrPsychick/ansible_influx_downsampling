@@ -35,8 +35,10 @@
       if ansible_influx_cqs.json.results is defined else []}}"
 
 - name: Setup databases
-  include_tasks: influxdb_database.yml database={{db_item}}
+  include_tasks: influxdb_database.yml # no longer supported: database={{db_item}}
   with_items: "{{ansible_influx_databases|sort}}"
+  vars:
+    database: "{{db_item}}"
   loop_control: { loop_var: db_item }
 
 - name: Total duration

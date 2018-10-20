@@ -221,8 +221,10 @@
     and ansible_influx_rp_create.json.results[0].statement_id == 0
 
 - name: '{{db_prefix}} Create measurements'
-  include_tasks: influxdb_measurement.yml measurement={{mm_item}}
+  include_tasks: influxdb_measurement.yml # no longer supported: measurement={{mm_item}}
   with_items: "{{ifx_db.measurements|sort}}"
+  vars:
+    measurement: "{{mm_item}}"
   loop_control: { loop_var: mm_item }
   when: ifx_mm_defined and (ifx_source_exists or ifx_source_rp_name == '')
     and (ifx_cq_recreate or ansible_influx_db_create is changed or mm_item not in ifx_mms or ifx_bf_force)
