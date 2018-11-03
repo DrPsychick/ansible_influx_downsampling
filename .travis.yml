@@ -139,6 +139,7 @@ after_script:
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW CONTINUOUS QUERIES";
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW MEASUREMENTS";
   - docker logs telegraf;
+  - docker logs influxdb;
   - >
     if [ "$TEST" = "setup" ]; then
     curl http://localhost:8086/query?db=$db_name --data-urlencode
