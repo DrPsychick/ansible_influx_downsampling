@@ -31,7 +31,7 @@ install:
   # start telegraf to continuously write data to influxdb
   - >
     if [ "$TEST" = "setup" -o "$TEST" = "compact" ]; then
-    docker run --rm -d --net host --name telegraf telegraf:alpine; 
+    docker run --rm -d --net host --privileged --name telegraf telegraf:alpine; 
     sleep 10;
     docker logs telegraf;
     fi
