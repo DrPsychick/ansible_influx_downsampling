@@ -138,10 +138,13 @@ after_script:
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW RETENTION POLICIES";
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW CONTINUOUS QUERIES";
   - curl http://localhost:8086/query?db=$db_name --data-urlencode "q=SHOW MEASUREMENTS";
+  - docker logs telegraf;
   - >
     if [ "$TEST" = "setup" ]; then
     curl http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SELECT usage_user FROM $db_name.$rp_name.cpu" | jq .;
+    curl http://localhost:8086/query?db=telegraf --data-urlencode
+    "q=SELECT usage_user FROM telegraf.rp_7d.cpu" | jq .;
     fi
   - >
     if [ "$TEST" = "migrate" ]; then
