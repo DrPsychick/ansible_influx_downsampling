@@ -25,12 +25,15 @@ before_install:
 
 install:
   # start influxdb (will take some time to be reachable!)
-  - docker run -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
+  - rm -rf $PWD/integration/influxdb/*
+  - docker run --rm -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine
 
   # start telegraf to continuously write data to influxdb
   - >
     if [ "$TEST" = "setup" -o "$TEST" = "compact" ]; then
-    docker run -d --net host --name telegraf telegraf:alpine; sleep 10;
+    docker run --rm -d --net host --name telegraf telegraf:alpine; 
+    sleep 10;
+    docker logs telegraf;
     fi
 
   # Install ansible and jq.
@@ -72,7 +75,7 @@ script:
   # TEST = setup (wait for CQ to run)
   - >
     if [ "$TEST" = "setup" ]; then
-    sleep 15;
+    sleep 25;
     curl http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m" | jq .;
     result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode
