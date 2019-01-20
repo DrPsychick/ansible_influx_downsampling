@@ -27,7 +27,7 @@ install:
   # start influxdb (will take some time to be reachable!)
   - rm -rf $PWD/integration/influxdb/*
   - >
-    docker run --rm -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine influxd --debug;
+    docker run --rm -d --name influxdb -p 8086:8086 -v $PWD/integration/influxdb:/var/lib/influxdb influxdb:alpine;
     sleep 10;
     docker logs influxdb
 
