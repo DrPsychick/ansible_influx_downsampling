@@ -86,6 +86,10 @@ ansible_influx_queries:
     , mean(TcpInSegs) AS TcpInSegs, mean(TcpMaxConn) AS TcpMaxConn, mean(TcpOutSegs) AS TcpOutSegs
     , mean(TcpRtoAlgorithm) AS TcpRtoAlgorithm, mean(TcpRtoMax) AS TcpRtoMax, mean(TcpRtoMin) AS TcpRtoMin
     , mean(UdpInDatagrams) AS UdpInDatagrams, mean(UdpOutDatagrams) AS UdpOutDatagrams
+  ping: >
+    SELECT max(maximum_response_ms) AS maximum_response_ms, mean(average_response_ms) AS average_response_ms, min(minimum_response_ms) AS minimum_response_ms
+    , mean(packets_received) AS packets_received, mean(packets_transmitted) AS packets_transmitted, mean(percent_packet_loss) AS percent_packet_loss
+    , median(result_code) AS result_code, mean(standard_deviation_ms) AS standard_deviation_ms
   procstat: >
     SELECT mean(cpu_time_guest) AS cpu_time_guest, mean(cpu_time_guest_nice) AS cpu_time_guest_nice, mean(cpu_time_idle) AS cpu_time_idle
     , mean(cpu_time_iowait) AS cpu_time_iowait, mean(cpu_time_irq) AS cpu_time_irq, mean(cpu_time_nice) AS cpu_time_nice, mean(cpu_time_soft_irq) AS cpu_time_soft_irq
