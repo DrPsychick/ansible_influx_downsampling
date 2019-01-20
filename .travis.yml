@@ -31,8 +31,8 @@ install:
   # start telegraf to continuously write data to influxdb
   - >
     if [ "$TEST" = "setup" -o "$TEST" = "compact" ]; then
-    docker run --rm -d --net host --privileged --name telegraf telegraf:alpine; 
-    sleep 10;
+    docker run --rm -d --net host --privileged --name telegraf telegraf:alpine telegraf --debug; 
+    sleep 12;
     docker logs telegraf;
     fi
 
@@ -146,6 +146,7 @@ after_script:
     "q=SELECT usage_user FROM $db_name.$rp_name.cpu" | jq .;
     curl http://localhost:8086/query?db=telegraf --data-urlencode
     "q=SELECT usage_user FROM telegraf.rp_7d.cpu" | jq .;
+    docker logs telegraf;
     fi
   - >
     if [ "$TEST" = "migrate" ]; then

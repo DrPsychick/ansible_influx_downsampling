@@ -1,116 +1,121 @@
 ---
 
-- name: '{{ifx_db.name}}/{{measurement}} - Set measurement variable'
+- name: '{{ ifx_db.name }}/{{ measurement }} - Set measurement variable'
   set_fact:
-    ifx_mm: "{{ifx_db.measurements[measurement]}}"
-    cq_counter: "{{cq_counter|default(0)|int + 1}}" # 1, 2, 3, 4, ...
-    cq_old_match: "{{ifx_cqs|select('match', 'cq_' + measurement + '_.*')|list}}"
+    ifx_mm: "{{ ifx_db.measurements[measurement] }}"
+    cq_counter: "{{ cq_counter|default(0)|int + 1 }}" # 1, 2, 3, 4, ...
+    cq_old_match: "{{ ifx_cqs|select('match', 'cq_' + measurement + '_.*')|list }}"
 
-- name: '{{ifx_db.name}}/{{measurement}} - Set simple defaults'
+- name: '{{ ifx_db.name }}/{{ measurement }} - Set simple defaults'
   set_fact:
-    mm_prefix: "{{ifx_mode+' '+ifx_db.name+'/'+measurement}} -"
-    source_mm: "{{'\"'+ifx_db.source.name+'\".\"'+ifx_source_rp_name+'\".\"'+measurement+'\"' if ifx_source_defined else ''}}"
-    target_mm: '"{{ifx_db.name}}"."{{ifx_rp_name}}"."{{measurement}}"'
-    bf_where: "{{'AND '+ifx_mm.where if ifx_mm.where is defined else ifx_bf_where}}"
-    bf_groupby: "{{ifx_mm.groupby if ifx_mm.groupby is defined else ifx_bf_groupby}}"
-    bf_interval: "{{ifx_mm.interval if ifx_mm.interval is defined else ifx_bf_interval}}"
-    cq_name: "{{'cq_'+measurement+'_'+ (ifx_mm.interval if ifx_mm.interval is defined else ifx_cq_interval_name)}}"
-    cq_select: "{{ifx_mm.select if ifx_mm.select is defined else ansible_influx_queries[measurement]}}"
-    cq_groupby:  "{{ifx_mm.groupby if ifx_mm.groupby is defined else ifx_cq_groupby}}"
-    cq_where: "{{'WHERE '+ifx_mm.where if ifx_mm.where is defined else ifx_cq_where}}"
-    cq_offset: "{{','+(cq_counter|int*ifx_cq_offset|int)|string+ifx_cq_offset_unit if ifx_cq_offset != '' else ''}}"
-    cq_resample: "{{'RESAMPLE' if ifx_mm.every is defined or ifx_mm.for is defined else ifx_cq_resample}}"
-    cq_resample_every: "{{'EVERY '+ifx_mm.every if ifx_mm.every is defined else ifx_cq_resample_every}}"
-    cq_resample_for: "{{'FOR '+ifx_mm.for if ifx_mm.for is defined else ifx_cq_resample_for}}"
-    cq_old_match: "{{cq_old_match|first if cq_old_match|length > 0 else ''}}"
+    mm_prefix: "{{ ifx_mode+' '+ifx_db.name+'/'+measurement }} -"
+    source_mm: "{{ '\"'+ifx_db.source.name+'\".\"'+ifx_source_rp_name+'\".\"'+measurement+'\"' if ifx_source_defined
+      else '' }}"
+    target_mm: '"{{ ifx_db.name }}"."{{ ifx_rp_name }}"."{{ measurement }}"'
+    bf_where: "{{ 'AND '+ifx_mm.where if ifx_mm.where is defined else ifx_bf_where }}"
+    bf_groupby: "{{ ifx_mm.groupby if ifx_mm.groupby is defined else ifx_bf_groupby }}"
+    bf_interval: "{{ ifx_mm.interval if ifx_mm.interval is defined else ifx_bf_interval }}"
+    cq_name: "{{ 'cq_'+measurement+'_'+ (ifx_mm.interval if ifx_mm.interval is defined else ifx_cq_interval_name) }}"
+    cq_select: "{{ ifx_mm.select if ifx_mm.select is defined else ansible_influx_queries[measurement] }}"
+    cq_groupby:  "{{ ifx_mm.groupby if ifx_mm.groupby is defined else ifx_cq_groupby }}"
+    cq_where: "{{ 'WHERE '+ifx_mm.where if ifx_mm.where is defined else ifx_cq_where }}"
+    cq_offset: "{{ ','+(cq_counter|int*ifx_cq_offset|int)|string+ifx_cq_offset_unit if ifx_cq_offset != '' else '' }}"
+    cq_resample: "{{ 'RESAMPLE' if ifx_mm.every is defined or ifx_mm.for is defined else ifx_cq_resample }}"
+    cq_resample_every: "{{ 'EVERY '+ifx_mm.every if ifx_mm.every is defined else ifx_cq_resample_every }}"
+    cq_resample_for: "{{ 'FOR '+ifx_mm.for if ifx_mm.for is defined else ifx_cq_resample_for }}"
+    cq_old_match: "{{ cq_old_match|first if cq_old_match|length > 0 else '' }}"
     mm_count_source: 0
-    mm_backfill: "{{ifx_mm.backfill if ifx_mm.backfill is defined else ifx_bf}}"
+    mm_backfill: "{{ ifx_mm.backfill if ifx_mm.backfill is defined else ifx_bf }}"
     mm_backfill_result: 0
-    mm_cq_offset: "{{ifx_mm.offset|regex_replace('([0-9]*)[smdw]', '\\1') if ifx_mm.offset is defined else ''}}"
-    mm_cq_offset_unit: "{{ifx_mm.offset|regex_replace('[0-9]*([smdw])', '\\1') if ifx_mm.offset is defined else ''}}"
+    mm_cq_offset: "{{ ifx_mm.offset|regex_replace('([0-9]*)[smdw]', '\\1') if ifx_mm.offset is defined else '' }}"
+    mm_cq_offset_unit: "{{ ifx_mm.offset|regex_replace('[0-9]*([smdw])', '\\1') if ifx_mm.offset is defined else '' }}"
 
-- name: '{{mm_prefix}} Set dependent defaults'
+- name: '{{ mm_prefix }} Set dependent defaults'
   set_fact:
     # select * when backfill interval='*'
-    bf_select: "{{'SELECT *' if ifx_bf_enabled and ifx_bf_interval == '*' else cq_select}}"
-    mm_offset: "{{','+(cq_counter|int*mm_cq_offset|int)|string+mm_cq_offset_unit if mm_cq_offset != '' else ''}}"
-    bf_groupby_string: "{{','+bf_groupby|join(',') if bf_groupby|length > 0 else ''}}"
-    cq_groupby_string: "{{','+cq_groupby|join(',') if cq_groupby|length > 0 else ''}}"
+    bf_select: "{{ 'SELECT *' if ifx_bf_enabled and ifx_bf_interval == '*' else cq_select }}"
+    mm_offset: "{{ ','+(cq_counter|int*mm_cq_offset|int)|string+mm_cq_offset_unit if mm_cq_offset != '' else '' }}"
+    bf_groupby_string: "{{ ','+bf_groupby|join(',') if bf_groupby|length > 0 else '' }}"
+    cq_groupby_string: "{{ ','+cq_groupby|join(',') if cq_groupby|length > 0 else '' }}"
 
-- name: '{{mm_prefix}} Set more dependent defaults'
+- name: '{{ mm_prefix }} Set more dependent defaults'
   set_fact:
-    bf_interval_string: "{{'time('+bf_interval+')' if bf_interval != '*' else bf_interval}}"
-    cq_interval_string: "{{'time(' + (ifx_mm.interval+mm_offset if ifx_mm.interval is defined else ifx_cq_interval_name+cq_offset) + ')'}}"
-    drop_cq_name: "{{cq_name if cq_name in ifx_cqs else
-      cq_old_match if cq_old_match != '' else cq_name}}"
+    bf_interval_string: "{{ 'time('+bf_interval+')' if bf_interval != '*' else bf_interval }}"
+    cq_interval_string: "{{ 'time(' + (ifx_mm.interval+mm_offset if ifx_mm.interval is defined
+      else ifx_cq_interval_name+cq_offset) + ')' }}"
+    drop_cq_name: "{{ cq_name if cq_name in ifx_cqs else
+      cq_old_match if cq_old_match != '' else cq_name }}"
 
-- name: '{{mm_prefix}} Run mode "{{ifx_mode}}" on "{{ifx_db.name}}/{{measurement}}" with CQ interval "{{cq_interval_string}}"'
+- name: '{{ mm_prefix }} Run mode "{{ ifx_mode }}" on "{{ ifx_db.name }}/{{ measurement }}"
+    with CQ interval "{{ cq_interval_string }}"'
   debug: var=cq_interval_string
   when: ifx_cq_enabled
 
-- name: '{{mm_prefix}} Run mode "{{ifx_mode}}" on "{{ifx_db.name}}/{{measurement}}" with BF interval "{{bf_interval_string}}"'
+- name: '{{ mm_prefix }} Run mode "{{ ifx_mode }}" on "{{ ifx_db.name }}/{{ measurement }}"
+    with BF interval "{{ bf_interval_string }}"'
   debug: var=bf_interval_string
   when: ifx_bf_enabled and not ifx_cq_enabled
 
-- name: '{{mm_prefix}} Get fields from SOURCE'
+- name: '{{ mm_prefix }} Get fields from SOURCE'
   uri:
-    url: "{{ansible_influx_url}}/query?db={{ifx_db.source.name}}"
+    url: "{{ ansible_influx_url }}/query?db={{ ifx_db.source.name }}"
     method: POST
-    body: "q=SHOW FIELD KEYS FROM {{source_mm}}"
+    body: "q=SHOW FIELD KEYS FROM {{ source_mm }}"
     return_content: yes
   register: ansible_influx_mm_fields
   when: ifx_source_defined
 
-- name: '{{mm_prefix}} Get SOURCE measurement count(*)'
+- name: '{{ mm_prefix }} Get SOURCE measurement count(*)'
   uri:
-    url: "{{ansible_influx_url}}/query?db={{ifx_db.source.name}}"
+    url: "{{ ansible_influx_url }}/query?db={{ ifx_db.source.name }}"
     method: POST
     body: >
-      q=SELECT COUNT(*) FROM {{source_mm}}
-      WHERE time >= now() - {{ifx_rp_duration}}
+      q=SELECT COUNT(*) FROM {{ source_mm }}
+      WHERE time >= now() - {{ ifx_rp_duration }}
     return_content: yes
   register: ansible_influx_mm_count
   when: ifx_bf_enabled and measurement not in ifx_mms and ifx_source_defined and ifx_bf_stats
 
-- name: '{{mm_prefix}} Calcuate SOURCE measurement count'
+- name: '{{ mm_prefix }} Calcuate SOURCE measurement count'
   set_fact:
-    mm_count_source: "{{ansible_influx_mm_count.json.results
+    mm_count_source: "{{ ansible_influx_mm_count.json.results
       |selectattr('series','defined')|map(attribute='series')|flatten
-      |map(attribute='values')|flatten|select('number')|map('int')|max}}"
+      |map(attribute='values')|flatten|select('number')|map('int')|max }}"
   when: ansible_influx_mm_count is succeeded
     and ansible_influx_mm_count.json is defined
     and ansible_influx_mm_count.json.results[0].series is defined
 
-- name: '{{mm_prefix}} Count on SOURCE'
-  debug: msg="Max count on SOURCE {{measurement}} = {{mm_count_source}}"
+- name: '{{ mm_prefix }} Count on SOURCE'
+  debug: msg="Max count on SOURCE {{ measurement }} = {{ mm_count_source }}"
   when: mm_count_source|int > 0
 
-- name: '{{mm_prefix}} Create list of fields'
+- name: '{{ mm_prefix }} Create list of fields'
   set_fact:
-    ifx_mm_fields: "{{ansible_influx_mm_fields.json.results
+    ifx_mm_fields: "{{ ansible_influx_mm_fields.json.results
       |selectattr('series', 'defined')|map(attribute='series')|flatten
       |rejectattr('values', 'callable')|map(attribute='values')|flatten
-      |select('match', '^(?!integer|float|string).*$')|list|default([])}}"
+      |select('match', '^(?!integer|float|string).*$')|list|default([]) }}"
 
-- name: '{{mm_prefix}} List fields'
-  debug: msg="Fields of {{measurement}} - {{ifx_mm_fields|join(',')}}"
+- name: '{{ mm_prefix }} List fields'
+  debug: msg="Fields of {{ measurement }} - {{ ifx_mm_fields|join(',') }}"
 
-- name: '{{mm_prefix}} Backfilling {{measurement}} ({{ifx_rp_name}}) from {{source_mm}} with {{ifx_rp_amount}}/{{ifx_bf_step}} steps'
-  debug: msg="Sequence start={{ifx_rp_amount|int}} end={{ifx_bf_step|int}} stride=-{{ifx_bf_step|int}}"
+- name: '{{ mm_prefix }} Backfilling {{ measurement }} ({{ ifx_rp_name }}) from {{ source_mm }}
+    with {{ ifx_rp_amount }}/{{ ifx_bf_step }} steps'
+  debug: msg="Sequence start={{ ifx_rp_amount|int }} end={{ ifx_bf_step|int }} stride=-{{ ifx_bf_step|int }}"
 
-- name: '{{mm_prefix}} Backfilling measurement'
+- name: '{{ mm_prefix }} Backfilling measurement'
   uri:
-    url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
+    url: "{{ ansible_influx_url }}/query?db={{ ifx_db.name }}"
     method: POST
-    timeout: "{{ansible_influx_timeout}}"
+    timeout: "{{ ansible_influx_timeout }}"
     # now() - rp.amount+rp.unit - x*bf.step
     body: >
-      q={{bf_select}} INTO {{target_mm}} FROM {{source_mm}}
-      WHERE time >= now() - {{seq}}{{ifx_rp_unit}}
-      AND time < now() - {{seq|int - ifx_bf_step|int}}{{ifx_rp_unit}}
-      {{bf_where}} GROUP BY {{bf_interval_string}}{{bf_groupby_string}}
+      q={{ bf_select }} INTO {{ target_mm }} FROM {{ source_mm }}
+      WHERE time >= now() - {{ seq }}{{ ifx_rp_unit }}
+      AND time < now() - {{ seq|int - ifx_bf_step|int }}{{ ifx_rp_unit }}
+      {{ bf_where }} GROUP BY {{ bf_interval_string }}{{ bf_groupby_string }}
     return_content: yes
-  with_sequence: start={{ifx_rp_amount|int}} end={{ifx_bf_step|int}} stride=-{{ifx_bf_step|int}}
+  with_sequence: start={{ ifx_rp_amount|int }} end={{ ifx_bf_step|int }} stride=-{{ ifx_bf_step|int }}
   loop_control: { loop_var: seq }
   register: ansible_influx_mm_backfill
   when: ifx_bf_enabled and ifx_source_exists and (measurement not in ifx_mms or ifx_bf_force)
@@ -121,7 +126,7 @@
     and ansible_influx_mm_backfill.json.results[0].error is defined
     and not 'points beyond retention policy dropped' in ansible_influx_mm_backfill.json.results[0].error )
 
-- name: '{{mm_prefix}} Print result from backfill'
+- name: '{{ mm_prefix }} Print result from backfill'
   debug: var=ansible_influx_mm_backfill
   when: (ansible_influx_mm_backfill is succeeded
     and ansible_influx_mm_backfill is not changed and ansible_influx_mm_backfill is not skipped
@@ -129,69 +134,68 @@
     and (ansible_influx_mm_backfill.results|map(attribute='succeeded')|flatten|default([])|unique != [ true ])
     ) or ansible_influx_mm_backfill is failed
 
-- name: '{{mm_prefix}} Sum up written data points'
+- name: '{{ mm_prefix }} Sum up written data points'
   set_fact:
-    mm_backfill_result: "{{ansible_influx_mm_backfill.results
+    mm_backfill_result: "{{ ansible_influx_mm_backfill.results
       |map(attribute='json.results')|flatten
       |selectattr('series', 'defined')|map(attribute='series')|flatten
-      |map(attribute='values')|flatten |select('number')|map('int')|sum(start=0)}}"
+      |map(attribute='values')|flatten |select('number')|map('int')|sum(start=0) }}"
   when: ifx_bf_enabled and ansible_influx_mm_backfill is changed
 
-- name: '{{mm_prefix}} Backfill results'
-  debug: msg="Total data points written = {{mm_backfill_result}}"
+- name: '{{ mm_prefix }} Backfill results'
+  debug: msg="Total data points written = {{ mm_backfill_result }}"
   when: ifx_bf_enabled and ansible_influx_mm_backfill is changed
 
-#- debug: msg="{{'cq_' + measurement + '_.*'}} in {{ifx_cqs}} = {{cq_old_match}} -> DROP {{drop_cq_name}}"
+#- debug: msg="{{ 'cq_' + measurement + '_.*' }} in {{ ifx_cqs }} = {{ cq_old_match }} -> DROP {{ drop_cq_name }}"
 
 # always drop and recreate CQ (we cannot update it) - IFF CQ is enabled
-- name: '{{mm_prefix}} Drop continuous query {{drop_cq_name}}'
+- name: '{{ mm_prefix }} Drop continuous query {{ drop_cq_name }}'
   uri:
-    url: "{{ansible_influx_url}}/query"
+    url: "{{ ansible_influx_url }}/query"
     method: POST
-    body: 'q=DROP CONTINUOUS QUERY "{{drop_cq_name}}" ON "{{ifx_db.name}}"'
+    body: 'q=DROP CONTINUOUS QUERY "{{ drop_cq_name }}" ON "{{ ifx_db.name }}"'
   when: ifx_source_defined and not ifx_source_drop and drop_cq_name in ifx_cqs
 
-- name: '{{mm_prefix}} Creating continuous query {{cq_name}}'
+- name: '{{ mm_prefix }} Creating continuous query {{ cq_name }}'
   uri:
-    url: "{{ansible_influx_url}}/query"
+    url: "{{ ansible_influx_url }}/query"
     method: POST
     body: >
-      q=CREATE CONTINUOUS QUERY "{{cq_name}}" ON "{{ifx_db.name}}"
-      {{cq_resample}} {{cq_resample_every}} {{cq_resample_for}}
-      BEGIN {{cq_select}} INTO {{target_mm}} FROM {{source_mm}} {{cq_where}}
-      GROUP BY {{cq_interval_string}}{{cq_groupby_string}} END
+      q=CREATE CONTINUOUS QUERY "{{ cq_name }}" ON "{{ ifx_db.name }}"
+      {{ cq_resample }} {{ cq_resample_every }} {{ cq_resample_for }}
+      BEGIN {{ cq_select }} INTO {{ target_mm }} FROM {{ source_mm }} {{ cq_where }}
+      GROUP BY {{ cq_interval_string }}{{ cq_groupby_string }} END
     return_content: yes
   register: ansible_influx_mm_cq
   when: ifx_source_defined and not ifx_source_drop and ifx_cq_enabled
 
-- name: '{{mm_prefix}} Get TARGET measurement count(*)'
+- name: '{{ mm_prefix }} Get TARGET measurement count(*)'
   uri:
-    url: "{{ansible_influx_url}}/query?db={{ifx_db.name}}"
+    url: "{{ ansible_influx_url }}/query?db={{ ifx_db.name }}"
     method: POST
-    body: "q=SELECT COUNT(*) FROM {{target_mm}}"
+    body: "q=SELECT COUNT(*) FROM {{ target_mm }}"
     return_content: yes
   register: ansible_influx_mm_count
   when: ifx_bf_enabled and ifx_source_defined and mm_backfill_result|int > 0
 
-- name: '{{mm_prefix}} Calcuate TARGET measurement count'
+- name: '{{ mm_prefix }} Calcuate TARGET measurement count'
   set_fact:
-    mm_count: "{{ansible_influx_mm_count.json.results
+    mm_count: "{{ ansible_influx_mm_count.json.results
       |selectattr('series','defined')|map(attribute='series')|flatten
-      |map(attribute='values')|flatten|select('number')|map('int')|max}}"
+      |map(attribute='values')|flatten|select('number')|map('int')|max }}"
   when: ansible_influx_mm_count is not skipped and ansible_influx_mm_count.json.results is defined
 
-- name: '{{mm_prefix}} Count on TARGET'
-  debug: msg="Max count on TARGET {{measurement}} = {{mm_count}}"
+- name: '{{ mm_prefix }} Count on TARGET'
+  debug: msg="Max count on TARGET {{ measurement }} = {{ mm_count }}"
   when: mm_count is defined
 
-- name: '{{mm_prefix}} Series downsampling'
-  debug: msg="{{mm_count}}/{{mm_count_source}} = {{(mm_count|int/mm_count_source|int*100)|round(2)}} %"
+- name: '{{ mm_prefix }} Series downsampling'
+  debug: msg="{{ mm_count }}/{{ mm_count_source }} = {{ (mm_count|int/mm_count_source|int*100)|round(2) }} %"
   when: mm_count is defined and ifx_bf_stats
 
-- name: '{{mm_prefix}} Collect stats'
+- name: '{{ mm_prefix }} Collect stats'
   set_fact:
-    mm_backfill_totals: "{{mm_backfill_totals|union([ mm_backfill_result ])}}"
-    mm_downsampling_totals: "{{mm_downsampling_totals
-     |union([ mm_count|int/mm_count_source|int*100 ]) if ifx_bf_stats else mm_downsampling_totals}}"
+    mm_backfill_totals: "{{ mm_backfill_totals|union([ mm_backfill_result ]) }}"
+    mm_downsampling_totals: "{{ mm_downsampling_totals
+     |union([ mm_count|int/mm_count_source|int*100 ]) if ifx_bf_stats else mm_downsampling_totals }}"
   when: ifx_bf_stats and mm_count is defined and mm_count_source is defined
-
