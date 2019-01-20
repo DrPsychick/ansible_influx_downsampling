@@ -16,7 +16,7 @@
 
     ifx_cq_enabled: "{{ ifx_db.continuous_query.interval is defined }}"
     ifx_cq: "{{ ifx_db.continuous_query }}"
-    ifx_cq_resample_defined: "{{ ifx_db.continuous_query.resample is defined i
+    ifx_cq_resample_defined: "{{ ifx_db.continuous_query.resample is defined
       and (ifx_db.continuous_query.resample.every is defined or ifx_db.continuous_query.resample.for is defined) }}"
     ifx_cq_resample_every_defined: "{{ ifx_db.continuous_query.resample is defined
       and ifx_db.continuous_query.resample.every is defined }}"
