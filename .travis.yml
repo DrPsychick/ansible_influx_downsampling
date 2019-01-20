@@ -81,9 +81,13 @@ script:
     sleep 25;
     curl http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m" | jq .;
+    for i in 1 2 3; do
     result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m"
     | jq .results[0].series[0].values[0][1]);
+    [ "null" != "$result" ] && break;
+    sleep 5;
+    done;
     [ "$result" -gt 0 ]
     && (echo -e "Setup test: ${GREEN}pass${NC}"; exit 0)
     || (echo -e -e "Setup test: ${RED}fail${NC} ($result)"; exit 1);
