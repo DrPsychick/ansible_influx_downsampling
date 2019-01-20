@@ -347,4 +347,3 @@
     return_content: yes
   register: ansible_influx_source_drop
   when: ifx_source_drop and ifx_source_exists and ifx_source_rp_name != ''
-

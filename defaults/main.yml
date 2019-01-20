@@ -1,3 +1,4 @@
+---
 
 ansible_influx_url: "http://localhost:8086"
 ansible_influx_timeout: 120
