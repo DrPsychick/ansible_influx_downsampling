@@ -149,8 +149,15 @@ after_script:
   - docker logs influxdb;
   - >
     if [ "$TEST" = "setup" ]; then
+    echo "$db_name.$rp_name:"
     curl http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SELECT usage_user FROM $db_name.$rp_name.cpu" | jq .;
+    now=$(date +%Y-%m-%dT%H:%M:%SZ)
+    now_5s=$(date -d-5seconds +%Y-%m-%dT%H:%M:%SZ)
+    curl http://localhost:8086/query?db=$db_name --data-urlencode
+    "q=SELECT mean(usage_user) FROM telegraf.rp_7d.cpu 
+    WHERE time >= '$now_5s' AND time < '$now' GROUP BY time(5s, 1s), *" | jq .;
+    echo "telegraf.rp_7d:"
     curl http://localhost:8086/query?db=telegraf --data-urlencode
     "q=SELECT usage_user FROM telegraf.rp_7d.cpu" | jq .;
     fi
