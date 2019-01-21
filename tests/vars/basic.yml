@@ -10,4 +10,3 @@ ansible_influx_databases:
       amount: "4"
       unit: "d"
       default: true
-
