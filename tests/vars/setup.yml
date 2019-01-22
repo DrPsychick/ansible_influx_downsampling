@@ -15,5 +15,5 @@ ansible_influx_databases:
     name: "telegraf_30d"
     retention_policy: { amount: "30", unit: "d", default: true }
     source: { name: "telegraf" }
-    continuous_query: { interval: "15s", offset: "1s" }
+    continuous_query: { interval: "20s", offset: "1s" }
     measurements: { cpu, mem }
