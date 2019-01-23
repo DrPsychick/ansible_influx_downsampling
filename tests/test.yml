@@ -4,6 +4,7 @@
   hosts: localhost
   remote_user: root
   pre_tasks:
-    - include_vars: vars/{{lookup('env', 'TEST')}}.yml
+    - name: Load vars/$TEST
+      include_vars: vars/{{ lookup('env', 'TEST') }}.yml
   roles:
     - ansible_influx_downsampling

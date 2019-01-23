@@ -19,7 +19,7 @@
     cq_select: "{{ ifx_mm.select if ifx_mm.select is defined else ansible_influx_queries[measurement] }}"
     cq_groupby:  "{{ ifx_mm.groupby if ifx_mm.groupby is defined else ifx_cq_groupby }}"
     cq_where: "{{ 'WHERE '+ifx_mm.where if ifx_mm.where is defined else ifx_cq_where }}"
-    cq_offset: "{{ ','+(cq_counter|int*ifx_cq_offset|int)|string+ifx_cq_offset_unit if ifx_cq_offset != '' else '' }}"
+    cq_offset: "{{ ','+(cq_counter|int*ifx_cq_offset|int)|string+ifx_cq_offset_unit if ifx_cq_offset else '' }}"
     cq_resample: "{{ 'RESAMPLE' if ifx_mm.every is defined or ifx_mm.for is defined else ifx_cq_resample }}"
     cq_resample_every: "{{ 'EVERY '+ifx_mm.every if ifx_mm.every is defined else ifx_cq_resample_every }}"
     cq_resample_for: "{{ 'FOR '+ifx_mm.for if ifx_mm.for is defined else ifx_cq_resample_for }}"
@@ -34,7 +34,7 @@
   set_fact:
     # select * when backfill interval='*'
     bf_select: "{{ 'SELECT *' if ifx_bf_enabled and ifx_bf_interval == '*' else cq_select }}"
-    mm_offset: "{{ ','+(cq_counter|int*mm_cq_offset|int)|string+mm_cq_offset_unit if mm_cq_offset != '' else '' }}"
+    mm_offset: "{{ ','+(cq_counter|int*mm_cq_offset|int)|string+mm_cq_offset_unit if mm_cq_offset else '' }}"
     bf_groupby_string: "{{ ','+bf_groupby|join(',') if bf_groupby|length > 0 else '' }}"
     cq_groupby_string: "{{ ','+cq_groupby|join(',') if cq_groupby|length > 0 else '' }}"
 
@@ -44,7 +44,7 @@
     cq_interval_string: "{{ 'time(' + (ifx_mm.interval+mm_offset if ifx_mm.interval is defined
       else ifx_cq_interval_name+cq_offset) + ')' }}"
     drop_cq_name: "{{ cq_name if cq_name in ifx_cqs else
-      cq_old_match if cq_old_match != '' else cq_name }}"
+      cq_old_match if cq_old_match else cq_name }}"
 
 - name: '{{ mm_prefix }} Run mode "{{ ifx_mode }}" on "{{ ifx_db.name }}/{{ measurement }}"
     with CQ interval "{{ cq_interval_string }}"'

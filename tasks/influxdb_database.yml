@@ -218,12 +218,12 @@
   set_fact:
     # assume default exists when referencing default!
     ifx_source_exists: "{{ ifx_db.source.rp_name in ifx_source_rps
-      if ifx_source_defined and ifx_source_rp_name != '' else false }}"
+      if ifx_source_defined and ifx_source_rp_name else false }}"
     ifx_backfill_start: "{{ lookup('pipe','date +%s') }}"
 
 #- debug: var=ansible_influx_source_rps
 #- debug: msg="source_exists = {{ ifx_db.source.rp_name }} in {{ ifx_source_rps }} if {{ ifx_source_defined }}
-#    and {{ ifx_source_rp_name }} != '' else false"
+#    and {{ ifx_source_rp_name }} else false"
 
 - name: '{{ db_prefix }} Source must exist for compact'
   debug: msg="Source '{{ ifx_db.source.name }}.{{ ifx_source_rp_name }}' must exist, skipping measurements and backfill"
@@ -257,7 +257,7 @@
   vars:
     measurement: "{{ mm_item }}"
   loop_control: { loop_var: mm_item }
-  when: ifx_mm_defined and (ifx_source_exists or ifx_source_rp_name == '')
+  when: ifx_mm_defined and (ifx_source_exists or not ifx_source_rp_name)
     and (ifx_cq_recreate or ansible_influx_db_create is changed or mm_item not in ifx_mms or ifx_bf_force)
 
 - name: '{{ db_prefix }} Ask to continue and switch default RP (may result in data loss!)'
@@ -346,4 +346,4 @@
       q=DROP RETENTION POLICY "{{ ifx_db.source.rp_name }}" ON "{{ ifx_db.source.name }}"
     return_content: yes
   register: ansible_influx_source_drop
-  when: ifx_source_drop and ifx_source_exists and ifx_source_rp_name != ''
+  when: ifx_source_drop and ifx_source_exists and ifx_source_rp_name
