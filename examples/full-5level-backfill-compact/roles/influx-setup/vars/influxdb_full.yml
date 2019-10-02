@@ -6,9 +6,12 @@ ansible_influx_timeout: 600
 # your own variables, to generalize and ease configuration
 my_default_mms: { cpu, disk, diskio, kernel, mem, net, netstat, nstat, processes, procstat, swap, system, docker }
 my_default_where: '"host" =~ /^(myhost|otherhost)$/'
-my_docker_mms: { docker_container_blkio, docker_container_cpu, docker_container_health, docker_container_mem, docker_container_net }
+my_docker_mms: { docker_container_blkio, docker_container_cpu, docker_container_health, docker_container_mem
+  , docker_container_net }
 my_docker_where: '"container_name" =~ /^(monitoring.*|backup.*|gitlab.*|dnsmasq.*|registry.*|telegraf.*)$/'
-my_influx_mms: { influxdb, influxdb_cq, influxdb_database, influxdb_httpd, influxdb_memstats, influxdb_queryExecutor, influxdb_runtime, influxdb_shard, influxdb_subscriber, influxdb_tsm1_cache, influxdb_tsm1_filestore, influxdb_tsm1_wal, influxdb_write }
+my_influx_mms: { influxdb, influxdb_cq, influxdb_database, influxdb_httpd, influxdb_memstats, influxdb_queryExecutor
+  , influxdb_runtime, influxdb_shard, influxdb_subscriber, influxdb_tsm1_cache, influxdb_tsm1_filestore
+  , influxdb_tsm1_wal, influxdb_write }
 my_influx_where: '"host" =~ /^(myinfluxhost|myotherinfluxhost)$/'
 my_windows_mms: { win_cpu, win_disk, win_diskio, win_mem, win_net, win_perf_counters, win_swap, win_system }
 my_windows_where: '"host" =~ /^(mywindowshost)$/'
@@ -27,41 +30,41 @@ ansible_influx_databases:
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "1m"
-      where: "{{my_default_where}}"
+      where: "{{ my_default_where }}"
       resample: { every: "5m", for: "10m" }
     backfill: { step: "2", stats: false }
-    measurements: "{{my_default_mms}}"
+    measurements: "{{ my_default_mms }}"
   level_1_docker:
     name: "telegraf_14d"
     retention_policy: { amount: "14", unit: "d", default: true }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "1m"
-      where: "{{my_docker_where}}"
+      where: "{{ my_docker_where }}"
       resample: { every: "5m", for: "10m" }
     backfill: { step: "1", stats: false }
-    measurements: "{{my_docker_mms}}"
+    measurements: "{{ my_docker_mms }}"
   level_1_influx:
     name: "telegraf_14d"
     retention_policy: { amount: "14", unit: "d", default: true }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "1m"
-      where: "{{my_influx_where}}"
+      where: "{{ my_influx_where }}"
       resample: { every: "5m", for: "10m" }
       groupby: [ '"database"', '"engine"', '"host"', '"retentionPolicy"' ]
     backfill: { step: "1", stats: false }
-    measurements: "{{my_influx_mms|combine({ 'influxdb_tsm1_engine': {} })}}"
+    measurements: "{{ my_influx_mms|combine({ 'influxdb_tsm1_engine': {} }) }}"
   level_1_windows:
     name: "telegraf_14d"
     retention_policy: { amount: "14", unit: "d", default: true }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "1m"
-      where: "{{my_windows_where}}"
+      where: "{{ my_windows_where }}"
       resample: { every: "5m", for: "10m" }
     backfill: { step: "2", stats: true }
-    measurements: "{{my_windows_mms}}"
+    measurements: "{{ my_windows_mms }}"
 
 ### LEVEL 2 : 30 days @ 5m
   level_2:
@@ -70,41 +73,41 @@ ansible_influx_databases:
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "5m"
-      where: "{{my_default_where}}"
+      where: "{{ my_default_where }}"
       resample: { every: "30m", for: "1h" }
     backfill: { step: 1 }
-    measurements: "{{my_default_mms}}"
+    measurements: "{{ my_default_mms }}"
   level_2_docker:
     name: "telegraf_30d"
     retention_policy: { amount: "30", unit: "d" }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "5m"
-      where: "{{my_docker_where}}"
+      where: "{{ my_docker_where }}"
       resample: { every: "30m", for: "1h" }
     backfill: { step: 1 }
-    measurements: "{{my_docker_mms}}"
+    measurements: "{{ my_docker_mms }}"
   level_2_influx:
     name: "telegraf_30d"
     retention_policy: { amount: "30", unit: "d" }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "5m"
-      where: "{{my_influx_where}}"
+      where: "{{ my_influx_where }}"
       groupby: [ '"database"', '"engine"', '"host"', '"retentionPolicy"' ]
       resample: { every: "30m", for: "1h" }
     backfill: { step: 1 }
-    measurements: "{{my_influx_mms}}"
+    measurements: "{{ my_influx_mms }}"
   level_2_windows:
     name: "telegraf_30d"
     retention_policy: { amount: "30", unit: "d" }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "5m"
-      where: "{{my_windows_where}}"
+      where: "{{ my_windows_where }}"
       resample: { every: "30m", for: "1h" }
     backfill: { step: 1 }
-    measurements: "{{my_windows_mms}}"
+    measurements: "{{ my_windows_mms }}"
 ### LEVEL 3 : 90 days @ 15m
   level_3:
     name: "telegraf_90d"
@@ -112,41 +115,41 @@ ansible_influx_databases:
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "15m"
-      where: "{{my_default_where}}"
+      where: "{{ my_default_where }}"
       resample: { every: "1h", for: "2h" }
     backfill: { step: 1 }
-    measurements: "{{my_default_mms}}"
+    measurements: "{{ my_default_mms }}"
   level_3_docker:
     name: "telegraf_90d"
     retention_policy: { amount: "90", unit: "d" }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "15m"
-      where: "{{my_docker_where}}"
+      where: "{{ my_docker_where }}"
       resample: { every: "1h", for: "2h" }
     backfill: { step: 1 }
-    measurements: "{{my_docker_mms}}"
+    measurements: "{{ my_docker_mms }}"
   level_3_influx:
     name: "telegraf_90d"
     retention_policy: { amount: "90", unit: "d" }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "15m"
-      where: "{{my_influx_where}}"
+      where: "{{ my_influx_where }}"
       groupby: [ '"database"', '"engine"', '"host"', '"retentionPolicy"' ]
       resample: { every: "1h", for: "2h" }
     backfill: { step: 1 }
-    measurements: "{{my_influx_mms}}"
+    measurements: "{{ my_influx_mms }}"
   level_3_windows:
     name: "telegraf_90d"
     retention_policy: { amount: "90", unit: "d" }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "15m"
-      where: "{{my_windows_where}}"
+      where: "{{ my_windows_where }}"
       resample: { every: "1h", for: "2h" }
     backfill: { step: 1 }
-    measurements: "{{my_windows_mms}}"
+    measurements: "{{ my_windows_mms }}"
 ### LEVEL 4 : 365 days @ 1h
   level_4:
     name: "telegraf_1y"
@@ -154,41 +157,41 @@ ansible_influx_databases:
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "1h"
-      where: "{{my_default_where}}"
+      where: "{{ my_default_where }}"
       resample: { every: "1d", for: "1d" }
     backfill: { step: 1 }
-    measurements: "{{my_default_mms}}"
+    measurements: "{{ my_default_mms }}"
   level_4_docker:
     name: "telegraf_1y"
     retention_policy: { amount: "52", unit: "w" }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "1h"
-      where: "{{my_docker_where}}"
+      where: "{{ my_docker_where }}"
       resample: { every: "1d", for: "1d" }
     backfill: { step: 1 }
-    measurements: "{{my_docker_mms}}"
+    measurements: "{{ my_docker_mms }}"
   level_4_influx:
     name: "telegraf_1y"
     retention_policy: { amount: "52", unit: "w" }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "1h"
-      where: "{{my_influx_where}}"
+      where: "{{ my_influx_where }}"
       groupby: [ '"database"', '"engine"', '"host"', '"retentionPolicy"' ]
       resample: { every: "1d", for: "1d" }
     backfill: { step: 1 }
-    measurements: "{{my_influx_mms}}"
+    measurements: "{{ my_influx_mms }}"
   level_4_windows:
     name: "telegraf_1y"
     retention_policy: { amount: "52", unit: "w" }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "1h"
-      where: "{{my_windows_where}}"
+      where: "{{ my_windows_where }}"
       resample: { every: "1d", for: "1d" }
     backfill: { step: 1 }
-    measurements: "{{my_windows_mms}}"
+    measurements: "{{ my_windows_mms }}"
 ### LEVEL 5 : 730 weeks @ 3h
   level_5:
     name: "telegraf_3y"
@@ -196,41 +199,41 @@ ansible_influx_databases:
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "3h"
-      where: "{{my_default_where}}"
+      where: "{{ my_default_where }}"
       resample: { every: "2d", for: "2d" }
     backfill: { step: 1 }
-    measurements: "{{my_default_mms}}"
+    measurements: "{{ my_default_mms }}"
   level_5_docker:
     name: "telegraf_3y"
     retention_policy: { amount: "156", unit: "w" }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "3h"
-      where: "{{my_docker_where}}"
+      where: "{{ my_docker_where }}"
       resample: { every: "2d", for: "2d" }
     backfill: { step: 1 }
-    measurements: "{{my_docker_mms}}"
+    measurements: "{{ my_docker_mms }}"
   level_5_influx:
     name: "telegraf_3y"
     retention_policy: { amount: "156", unit: "w" }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "3h"
-      where: "{{my_influx_where}}"
+      where: "{{ my_influx_where }}"
       groupby: [ '"database"', '"engine"', '"host"', '"retentionPolicy"' ]
       resample: { every: "2d", for: "2d" }
     backfill: { step: 1 }
-    measurements: "{{my_influx_mms}}"
+    measurements: "{{ my_influx_mms }}"
   level_5_windows:
     name: "telegraf_3y"
     retention_policy: { amount: "156", unit: "w" }
     source: { name: "telegraf", rp_name: "autogen" }
     continuous_query:
       interval: "3h"
-      where: "{{my_windows_where}}"
+      where: "{{ my_windows_where }}"
       resample: { every: "2d", for: "2d" }
     backfill: { step: 1 }
-    measurements: "{{my_windows_mms}}"
+    measurements: "{{ my_windows_mms }}"
 # last step: set retention policy as default (evict downsampled data)
 # only enable once you are sure to evict old data (have a backup!)
   #level_last:

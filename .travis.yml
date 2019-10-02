@@ -35,7 +35,7 @@ install:
   - >
     if [ "$TEST" = "setup" -o "$TEST" = "compact" ]; then
     docker run --rm -d --net host --privileged --name telegraf telegraf:alpine telegraf --debug;
-    sleep 12;
+    sleep 5;
     docker logs telegraf;
     fi
 
@@ -78,16 +78,15 @@ script:
   # TEST = setup (wait for CQ to run)
   - >
     if [ "$TEST" = "setup" ]; then
-    sleep 15;
-    curl http://localhost:8086/query?db=$db_name --data-urlencode
-    "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m" | jq .;
-    for i in 1 2 3; do
+    for i in 1 2 3 4 5 6; do
     result=$(curl http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SELECT ROUND(MEAN(usage_user)) AS usage_user FROM $db_name.$rp_name.cpu WHERE time >= now() -1m"
     | jq .results[0].series[0].values[0][1]);
+    echo "$i: $result";
     [ "null" != "$result" ] && break;
     sleep 5;
     done;
+    echo "Loops (5s) needed: $i";
     [ "$result" -gt 0 ]
     && (echo -e "Setup test: ${GREEN}pass${NC}"; exit 0)
     || (echo -e -e "Setup test: ${RED}fail${NC} ($result)"; exit 1);
@@ -152,14 +151,13 @@ after_script:
     echo "$db_name.$rp_name:";
     curl http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SELECT usage_user FROM $db_name.$rp_name.cpu" | jq .;
-    now=$(date -u +%Y-%m-%dT%H:%M:%SZ);
-    now_5s=$(date -u -d-5seconds +%Y-%m-%dT%H:%M:%SZ);
+    echo "telegraf.rp_7d: (CQ)";
     curl http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SELECT mean(usage_user) FROM telegraf.rp_7d.cpu 
-    WHERE time >= '$now_5s' AND time < '$now' GROUP BY time(5s, 1s), *" | jq .;
+    WHERE time >= now() - 20s AND time < now() - 10s GROUP BY time(5s, 1s), *" | jq .;
     curl http://localhost:8086/query?db=$db_name --data-urlencode
     "q=SELECT mean(usage_user) FROM telegraf.rp_7d.cpu 
-    WHERE time >= '$now_5s' AND time < '$now' GROUP BY time(10s, 1s), *" | jq .;
+    WHERE time >= now() - 20s AND time < now() - 10s GROUP BY time(10s, 1s), *" | jq .;
     echo "telegraf.rp_7d:";
     curl http://localhost:8086/query?db=telegraf --data-urlencode
     "q=SELECT usage_user FROM telegraf.rp_7d.cpu" | jq .;
