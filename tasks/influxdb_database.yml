@@ -275,7 +275,7 @@
 
 - name: '{{ db_prefix }} Set count_newmetrics'
   set_fact:
-    count_newmetrics: "{{ 0 if ansible_influx_newmetrics.json.results[0].series is not defined else
+    count_newmetrics: "{{ 0|int if ansible_influx_newmetrics.json.results[0].series is not defined else
       ansible_influx_newmetrics.json.results
       |selectattr('series','defined')|map(attribute='series')|flatten
       |map(attribute='values')|flatten|select('number')|map('int')|max }}"

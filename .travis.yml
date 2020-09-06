@@ -1,11 +1,10 @@
 ---
-services:
-  - docker
-language: python
-python: "2.7"
-cache: pip
 os: linux
 dist: bionic
+language: python
+cache: pip
+services:
+  - docker
 
 env:
   global:
@@ -39,7 +38,7 @@ install:
     fi
 
   # Install ansible and jq.
-  - "pip install ansible jq"
+  - pip3 install -U ansible jq
 
   # Add ansible.cfg to pick up roles path.
   - printf "[defaults]\nroles_path = ../" > ansible.cfg
