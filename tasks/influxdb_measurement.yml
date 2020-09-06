@@ -127,11 +127,11 @@
     and not 'points beyond retention policy dropped' in ansible_influx_mm_backfill.json.results[0].error )
 
 - name: '{{ mm_prefix }} Print result from backfill'
-  debug: var=ansible_influx_mm_backfill
+  debug: var=ansible_influx_mm_backfill.results|map(attribute='json.results')|list
   when: (ansible_influx_mm_backfill is succeeded
-    and ansible_influx_mm_backfill is not changed and ansible_influx_mm_backfill is not skipped
-    and (ansible_influx_mm_backfill.results|map(attribute='skipped')|flatten|default([])|unique != [ true ])
-    and (ansible_influx_mm_backfill.results|map(attribute='succeeded')|flatten|default([])|unique != [ true ])
+    and ansible_influx_mm_backfill is not skipped
+    and (ansible_influx_mm_backfill.results|map(attribute='skipped')|reject('undefined')|flatten|default([])|unique != [ true ])
+    and (ansible_influx_mm_backfill.results|map(attribute='succeeded')|reject('undefined')|flatten|default([])|unique != [ true ])
     ) or ansible_influx_mm_backfill is failed
 
 - name: '{{ mm_prefix }} Sum up written data points'
@@ -191,11 +191,11 @@
 
 - name: '{{ mm_prefix }} Series downsampling'
   debug: msg="{{ mm_count }}/{{ mm_count_source }} = {{ (mm_count|int/mm_count_source|int*100)|round(2) }} %"
-  when: mm_count is defined and ifx_bf_stats
+  when: mm_count is defined and mm_count_source|int > 0 and ifx_bf_stats
 
 - name: '{{ mm_prefix }} Collect stats'
   set_fact:
     mm_backfill_totals: "{{ mm_backfill_totals|union([ mm_backfill_result ]) }}"
     mm_downsampling_totals: "{{ mm_downsampling_totals
      |union([ mm_count|int/mm_count_source|int*100 ]) if ifx_bf_stats else mm_downsampling_totals }}"
-  when: ifx_bf_stats and mm_count is defined and mm_count_source is defined
+  when: ifx_bf_stats and mm_count is defined and mm_count_source|int > 0

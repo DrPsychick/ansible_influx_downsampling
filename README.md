@@ -111,6 +111,10 @@ my_ansible_influx_queries:
 
 A complete setup can be found in [examples/full-5level-backfill-compact/](examples/full-5level-backfill-compact/)
 
+Run time options
+----------------
+* set ansible variable `recreate_cqs=yes` and all CQs will be recreated, so the role is running through all measurements and levels of compaction (not touching existing data)
+
 Attention
 =========
 If you enable **backfill**:
