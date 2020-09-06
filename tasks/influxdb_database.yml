@@ -275,7 +275,8 @@
 - debug: var=ansible_influx_newmetrics
 - name: '{{ db_prefix }} Set count_newmetrics'
   set_fact:
-    count_newmetrics: "{{ ansible_influx_newmetrics.json.results
+    count_newmetrics: "{{ 0 if ansible_influx_newmetrics.json.results[0].series is not defined else
+      ansible_influx_newmetrics.json.results
       |selectattr('series','defined')|map(attribute='series')|flatten
       |map(attribute='values')|flatten|select('number')|map('int')|default([0])|max }}"
   when: ifx_source_drop and ifx_source_exists
@@ -285,7 +286,7 @@
 - name: '{{ db_prefix }} Ask to continue and switch default RP (may result in data loss!)'
   pause:
     prompt: "I will now backfill gap and switch default RP and DROP the source! Continue?"
-  when: ifx_source_drop and ifx_source_exists and count_newmetrics > 0
+  when: ifx_source_drop and ifx_source_exists and count_newmetrics|default(0) > 0
 
 # run twice -> sum up results
 - name: '{{ db_prefix }} Set backfill_start2'
@@ -302,7 +303,7 @@
       GROUP BY *
     return_content: yes
   register: ansible_influx_bf_closegap
-  when: ifx_source_drop and ifx_source_exists and count_newmetrics > 0
+  when: ifx_source_drop and ifx_source_exists and count_newmetrics|default(0) > 0
 
 - name: '{{ db_prefix }} Backfill again (2) since start (close gap)'
   uri:
@@ -315,7 +316,7 @@
       GROUP BY *
     return_content: yes
   register: ansible_influx_bf_closegap2
-  when: ifx_source_drop and ifx_source_exists and count_newmetrics > 0
+  when: ifx_source_drop and ifx_source_exists and count_newmetrics|default(0) > 0
 
 - name: '{{ db_prefix }} Get backfill points written'
   set_fact:
