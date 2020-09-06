@@ -277,7 +277,7 @@
   set_fact:
     count_newmetrics: "{{ ansible_influx_newmetrics.json.results
       |selectattr('series','defined')|map(attribute='series')|flatten
-      |map(attribute='values')|flatten|select('number')|map('int')|default[0]|max }}"
+      |map(attribute='values')|flatten|select('number')|map('int')|default([0])|max }}"
   when: ifx_source_drop and ifx_source_exists
 
 - debug: var=count_newmetrics
