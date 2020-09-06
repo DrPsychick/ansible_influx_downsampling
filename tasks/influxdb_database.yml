@@ -260,10 +260,29 @@
   when: ifx_mm_defined and (ifx_source_exists or not ifx_source_rp_name)
     and (ifx_cq_recreate or ansible_influx_db_create is changed or mm_item not in ifx_mms or ifx_bf_force)
 
+# count new metrics -> if 0, then skip backfill
+- name: '{{ db_prefix }} Count new metrics in default RP'
+  uri:
+    url: "{{ ansible_influx_url }}/query?db={{ ifx_db.name }}"
+    method: POST
+    body: >
+      q=SELECT COUNT(*)
+      FROM "{{ ifx_db.source.name }}"."{{ ifx_source_rp_name }}"./^({{ ifx_db.measurements|join('|') }})$/
+      WHERE time >= {{ ifx_backfill_start }}000ms
+    return_content: yes
+  register: ansible_influx_newmetrics
+  when: ifx_source_drop and ifx_source_exists
+- name: '{{ db_prefix }} Set count_newmetrics'
+  set_fact:
+    count_newmetrics: "{{ ansible_influx_newmetrics.json.results
+      |selectattr('series','defined')|map(attribute='series')|flatten
+      |map(attribute='values')|flatten|select('number')|map('int')|max }}"
+- debug: var=count_newmetrics
+
 - name: '{{ db_prefix }} Ask to continue and switch default RP (may result in data loss!)'
   pause:
     prompt: "I will now backfill gap and switch default RP and DROP the source! Continue?"
-  when: ifx_source_drop and ifx_source_exists
+  when: ifx_source_drop and ifx_source_exists and count_newmetrics > 0
 
 # run twice -> sum up results
 - name: '{{ db_prefix }} Set backfill_start2'
@@ -280,7 +299,7 @@
       GROUP BY *
     return_content: yes
   register: ansible_influx_bf_closegap
-  when: ifx_source_drop and ifx_source_exists
+  when: ifx_source_drop and ifx_source_exists and count_newmetrics > 0
 
 - name: '{{ db_prefix }} Backfill again (2) since start (close gap)'
   uri:
@@ -293,7 +312,7 @@
       GROUP BY *
     return_content: yes
   register: ansible_influx_bf_closegap2
-  when: ifx_source_drop and ifx_source_exists
+  when: ifx_source_drop and ifx_source_exists and count_newmetrics > 0
 
 - name: '{{ db_prefix }} Get backfill points written'
   set_fact:
