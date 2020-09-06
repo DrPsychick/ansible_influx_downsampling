@@ -1,19 +1,17 @@
 ---
+os: linux
+dist: bionic
+language: python
+cache: pip
 services:
   - docker
-language: python
-python: "2.7"
-cache: pip
-
-sudo: required
-dist: xenial
 
 env:
   global:
     - GREEN='\033[0;32m'
     - RED='\033[0;31m'
     - NC='\033[0m' # No Color
-  matrix:
+  jobs:
     - TEST=basic db_name=telegraf rp_name=rp_4d
     - TEST=setup db_name=telegraf_30d rp_name=rp_30d
     - TEST=migrate db_name=test_4d rp_name=rp_4d db_name_source=test
@@ -40,7 +38,7 @@ install:
     fi
 
   # Install ansible and jq.
-  - "pip install ansible jq"
+  - pip3 install -U ansible jq
 
   # Add ansible.cfg to pick up roles path.
   - printf "[defaults]\nroles_path = ../" > ansible.cfg
@@ -59,11 +57,14 @@ script:
   - yes | ansible-playbook -i tests/inventory tests/test.yml --connection=local
 
   # Run the role/playbook again, checking to make sure it's idempotent.
+  # Skip on "compact" as it will result in 3 changes (create and drop source RP)
   - >
-    yes | ansible-playbook -i tests/inventory tests/test.yml --connection=local
-    | grep -q 'changed=0.*failed=0'
-    && (echo -e "Idempotence test: ${GREEN}pass${NC}" && exit 0)
-    || (echo -e "Idempotence test: ${RED}fail${NC}" && exit 1);
+    if [ "$TEST" != "compact" ]; then
+    result=$(yes | ansible-playbook -i tests/inventory tests/test.yml --connection=local);
+    echo "$result" | grep -q 'changed=0.*failed=0'
+    && (echo -e "Idempotence test: ${GREEN}pass${NC}"; exit 0)
+    || (echo -e "Idempotence test: ${RED}fail${NC}"; echo -e "$result"; exit 1);
+    fi
 
   # TEST = basic
   - >
