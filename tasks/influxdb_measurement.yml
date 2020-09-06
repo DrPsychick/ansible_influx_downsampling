@@ -130,8 +130,8 @@
   debug: var=ansible_influx_mm_backfill
   when: (ansible_influx_mm_backfill is succeeded
     and ansible_influx_mm_backfill is not changed and ansible_influx_mm_backfill is not skipped
-    and (ansible_influx_mm_backfill.results|map(attribute='skipped')|flatten|default([])|unique != [ true ])
-    and (ansible_influx_mm_backfill.results|map(attribute='succeeded')|flatten|default([])|unique != [ true ])
+    and (ansible_influx_mm_backfill.results|map(attribute='skipped')|reject('undefined')|flatten|default([])|unique != [ true ])
+    and (ansible_influx_mm_backfill.results|map(attribute='succeeded')|reject('undefined')|flatten|default([])|unique != [ true ])
     ) or ansible_influx_mm_backfill is failed
 
 - name: '{{ mm_prefix }} Sum up written data points'
@@ -189,7 +189,7 @@
   debug: msg="Max count on TARGET {{ measurement }} = {{ mm_count }}"
   when: mm_count is defined
 
-- name: '{{ mm_prefix }} Sifx_bf_statseries downsampling'
+- name: '{{ mm_prefix }} Series downsampling'
   debug: msg="{{ mm_count }}/{{ mm_count_source }} = {{ (mm_count|int/mm_count_source|int*100)|round(2) }} %"
   when: mm_count is defined and mm_count_source|int > 0 and ifx_bf_stats
 
