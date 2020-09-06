@@ -57,11 +57,14 @@ script:
   - yes | ansible-playbook -i tests/inventory tests/test.yml --connection=local
 
   # Run the role/playbook again, checking to make sure it's idempotent.
+  # Skip on "compact" as it will result in 3 changes (create and drop source RP)
   - >
+    if [ "$TEST" != "compact" ]; then
     result=$(yes | ansible-playbook -i tests/inventory tests/test.yml --connection=local);
     echo "$result" | grep -q 'changed=0.*failed=0'
     && (echo -e "Idempotence test: ${GREEN}pass${NC}"; exit 0)
     || (echo -e "Idempotence test: ${RED}fail${NC}"; echo -e "$result"; exit 1);
+    fi
 
   # TEST = basic
   - >
