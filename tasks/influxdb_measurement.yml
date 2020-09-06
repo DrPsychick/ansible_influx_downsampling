@@ -127,7 +127,7 @@
     and not 'points beyond retention policy dropped' in ansible_influx_mm_backfill.json.results[0].error )
 
 - name: '{{ mm_prefix }} Print result from backfill'
-  debug: var=ansible_influx_mm_backfill
+  debug: var=ansible_influx_mm_backfill.results|map(attribute='json.results')|list
   when: (ansible_influx_mm_backfill is succeeded
     and ansible_influx_mm_backfill is not skipped
     and (ansible_influx_mm_backfill.results|map(attribute='skipped')|reject('undefined')|flatten|default([])|unique != [ true ])
