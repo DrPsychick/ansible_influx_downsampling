@@ -62,6 +62,8 @@
     method: POST
     body: "q=SHOW FIELD KEYS FROM {{ source_mm }}"
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_mm_fields
   when: ifx_source_defined
 
@@ -73,6 +75,8 @@
       q=SELECT COUNT(*) FROM {{ source_mm }}
       WHERE time >= now() - {{ ifx_rp_duration }}
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_mm_count
   when: ifx_bf_enabled and measurement not in ifx_mms and ifx_source_defined and ifx_bf_stats
 
@@ -115,6 +119,8 @@
       AND time < now() - {{ seq|int - ifx_bf_step|int }}{{ ifx_rp_unit }}
       {{ bf_where }} GROUP BY {{ bf_interval_string }}{{ bf_groupby_string }}
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   with_sequence: start={{ ifx_rp_amount|int }} end={{ ifx_bf_step|int }} stride=-{{ ifx_bf_step|int }}
   loop_control: { loop_var: seq }
   register: ansible_influx_mm_backfill
@@ -154,6 +160,8 @@
     url: "{{ ansible_influx_url }}/query"
     method: POST
     body: 'q=DROP CONTINUOUS QUERY "{{ drop_cq_name }}" ON "{{ ifx_db.name }}"'
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   when: ifx_source_defined and not ifx_source_drop and drop_cq_name in ifx_cqs
 
 - name: '{{ mm_prefix }} Creating continuous query {{ cq_name }}'
@@ -166,6 +174,8 @@
       BEGIN {{ cq_select }} INTO {{ target_mm }} FROM {{ source_mm }} {{ cq_where }}
       GROUP BY {{ cq_interval_string }}{{ cq_groupby_string }} END
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_mm_cq
   when: ifx_source_defined and not ifx_source_drop and ifx_cq_enabled
 
@@ -175,6 +185,8 @@
     method: POST
     body: "q=SELECT COUNT(*) FROM {{ target_mm }}"
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_mm_count
   when: ifx_bf_enabled and ifx_source_defined and mm_backfill_result|int > 0
 

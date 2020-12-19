@@ -1,6 +1,8 @@
 ---
 
 ansible_influx_url: "http://localhost:8086"
+ansible_influx_user: ""
+ansible_influx_pass: ""
 # timeout for HTTP call from ansible
 # ansible_influx_timeout: 600
 

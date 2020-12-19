@@ -3,9 +3,17 @@
 - name: Set variables
   set_fact:
     ifx_start: "{{ lookup('pipe', 'date +%s') }}"
+    username: "{{ ansible_influx_user|default('') }}"
+    password: "{{ ansible_influx_pass|default('') }}"
 
 - name: Get databases
-  uri: url="{{ ansible_influx_url }}/query" method=POST body="q=SHOW DATABASES" return_content=yes
+  uri:
+    url: "{{ ansible_influx_url }}/query"
+    method: POST
+    body: "q=SHOW DATABASES"
+    return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_dbs
   changed_when: false
   failed_when: ansible_influx_dbs.status != 200 or (ansible_influx_dbs.rc|default(0) == 1)
@@ -21,7 +29,13 @@
 
 # needed to check if RP needs to be created
 - name: Show continuous queries
-  uri: url="{{ ansible_influx_url }}/query" method=POST body="q=SHOW CONTINUOUS QUERIES" return_content=yes
+  uri:
+    url: "{{ ansible_influx_url }}/query"
+    method: POST
+    body: "q=SHOW CONTINUOUS QUERIES"
+    return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_cqs
   changed_when: false
   failed_when: (ansible_influx_cqs.rc|default(0) == 1)

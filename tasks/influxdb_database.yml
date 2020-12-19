@@ -154,6 +154,8 @@
     method: POST
     body: "q=CREATE DATABASE {{ ifx_db.name }}"
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   when: ifx_db.name not in ifx_dbs
   register: ansible_influx_db_create
   changed_when: ansible_influx_db_create.status == 200 and ansible_influx_db_create.json is defined
@@ -165,6 +167,8 @@
     method: POST
     body: "q=SHOW RETENTION POLICIES"
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_source_rps
   when: ifx_source_defined
 
@@ -174,6 +178,8 @@
     method: POST
     body: "q=SHOW MEASUREMENTS"
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_source_mms
   when: ifx_source_defined and ifx_mode != 'compact'
 
@@ -183,6 +189,8 @@
     method: POST
     body: "q=SHOW RETENTION POLICIES"
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_rps
   when: ansible_influx_db_create is not changed
 
@@ -192,6 +200,8 @@
     method: POST
     body: "q=SHOW MEASUREMENTS"
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_mms
   when: ansible_influx_db_create is not changed and ifx_mode != 'compact'
 
@@ -246,6 +256,8 @@
       q=CREATE RETENTION POLICY "{{ ifx_rp_name }}" ON "{{ ifx_db.name }}"
       DURATION {{ ifx_rp_duration }} REPLICATION 1 {{ ifx_rp_default_string }}
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   when: ansible_influx_db_create is changed or (ifx_rps is defined and ifx_rp_name not in ifx_rps)
   register: ansible_influx_rp_create
   changed_when: ansible_influx_rp_create.status == 200 and ansible_influx_rp_create.json is defined
@@ -270,6 +282,8 @@
       FROM "{{ ifx_db.source.name }}"."{{ ifx_source_rp_name }}"./^({{ ifx_db.measurements|join('|') }})$/
       WHERE time >= {{ ifx_backfill_start }}000ms
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_newmetrics
   when: ifx_source_drop and ifx_source_exists
 - name: '{{ db_prefix }} Set count_newmetrics'
@@ -299,6 +313,8 @@
       WHERE time >= {{ ifx_backfill_start }}000ms
       GROUP BY *
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_bf_closegap
   when: ifx_source_drop and ifx_source_exists and count_newmetrics|int > 0
 
@@ -312,6 +328,8 @@
       WHERE time >= {{ ifx_backfill_start2 }}000ms
       GROUP BY *
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_bf_closegap2
   when: ifx_source_drop and ifx_source_exists and count_newmetrics|int > 0
 
@@ -341,6 +359,8 @@
     body: >
       q=ALTER RETENTION POLICY "{{ ifx_rp_name }}" ON "{{ ifx_db.name }}" DEFAULT
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_rp_alter
   when: ifx_source_drop and ifx_source_exists
   changed_when: ansible_influx_rp_alter.status == 200 and ansible_influx_rp_alter.json is defined
@@ -365,5 +385,7 @@
     body: >
       q=DROP RETENTION POLICY "{{ ifx_db.source.rp_name }}" ON "{{ ifx_db.source.name }}"
     return_content: yes
+    url_username: "{{ username }}"
+    url_password: "{{ password }}"
   register: ansible_influx_source_drop
   when: ifx_source_drop and ifx_source_exists and ifx_source_rp_name
