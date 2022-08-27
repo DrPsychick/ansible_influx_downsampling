@@ -336,9 +336,13 @@ ansible_influx_queries:
 #    , mean("Zeit_(Percent)") AS "Zeit_(Percent)"
   win_mem: >
     SELECT
-    mean(Available_Bytes) AS Available_Bytes, mean(Cache_Faults_persec) AS Cache_Faults_persec
-    , mean(Demand_Zero_Faults_persec) AS Demand_Zero_Faults_persec, mean(Page_Faults_persec) AS Page_Faults_persec
-    , mean(Pages_persec) AS Pages_persec, Pool_Nonpaged_Bytes mean(Pool_Paged_Bytes) AS Pool_Paged_Bytes
+    mean(Available_Bytes) AS Available_Bytes
+    , mean(Cache_Faults_persec) AS Cache_Faults_persec
+    , mean(Demand_Zero_Faults_persec) AS Demand_Zero_Faults_persec
+    , mean(Page_Faults_persec) AS Page_Faults_persec
+    , mean(Pages_persec) AS Pages_persec
+    , mean(Pool_Nonpaged_Bytes) AS Pool_Nonpaged_Bytes
+    , mean(Pool_Paged_Bytes) AS Pool_Paged_Bytes
     , mean(Standby_Cache_Core_Bytes) AS Standby_Cache_Core_Bytes
     , mean(Standby_Cache_Normal_Priority_Bytes) AS Standby_Cache_Normal_Priority_Bytes
     , mean(Standby_Cache_Reserve_Bytes) AS Standby_Cache_Reserve_Bytes
@@ -352,7 +356,8 @@ ansible_influx_queries:
 #    , mean("Verfügbare_Bytes") AS "Verfügbare_Bytes", mean("Wechselfehler/s") AS "Wechselfehler/s"
   win_net: >
     SELECT
-    mean(Bytes_Received_persec) AS Bytes_Received_persec, mean(Bytes_Sent_persec) AS Bytes_Sent_persec
+    mean(Bytes_Received_persec) AS Bytes_Received_persec
+    , mean(Bytes_Sent_persec) AS Bytes_Sent_persec
     , mean(Packets_Outbound_Discarded) AS Packets_Outbound_Discarded
     , mean(Packets_Outbound_Errors) AS Packets_Outbound_Errors
     , mean(Packets_Received_Discarded) AS Packets_Received_Discarded
@@ -368,7 +373,8 @@ ansible_influx_queries:
 #    , mean("Empfangene_Pakete/s") AS "Empfangene_Pakete/s"
 #    , mean("Pakete_gesendet/s") AS "Pakete_gesendet/s"
   win_perf_counters: >
-    SELECT mean(Bytes_Received_persec) AS Bytes_Received_persec, mean(Bytes_Sent_persec) AS Bytes_Sent_persec
+    SELECT mean(Bytes_Received_persec) AS Bytes_Received_persec
+    , mean(Bytes_Sent_persec) AS Bytes_Sent_persec
     , mean(Packets_Outbound_Discarded) AS Packets_Outbound_Discarded
     , mean(Packets_Outbound_Errors) AS Packets_Outbound_Errors
     , mean(Packets_Received_Discarded) AS Packets_Received_Discarded
